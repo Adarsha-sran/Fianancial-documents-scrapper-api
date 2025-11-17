@@ -1,0 +1,24 @@
+# Requirements for Financial Documents API
+# Minimal dependencies for production use
+
+# Core FastAPI and web server
+fastapi==0.104.1
+uvicorn==0.24.0
+
+# Database
+supabase==2.0.0
+
+# Web Scraping
+firecrawl-py==1.7.4
+
+# Environment configuration
+python-dotenv==1.0.0
+
+# HTTP client (dependency for supabase and firecrawl)
+httpx==0.24.1
+requests==2.31.0
+
+# Standard library enhancements (auto-installed with above packages)
+pydantic==2.11.9
+typing-extensions>=4.0.0
+

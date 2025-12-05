@@ -124,7 +124,7 @@ DEV_BANK_DYNAMIC_API = {
         "file_base": "https://web-cms.jbbl.com.np/framework/",
         "method": "jbbl_api",
         "annual_category": "Annual Reports",
-        "quarterly_category": "Quarterly Reports"
+        "quarterly_category": "Quarterly Report"
     },
     "GRDBL": {
         "name": "Green Development Bank",
@@ -904,7 +904,8 @@ def insert_dev_bank_document_to_db(bank_id: int, bank_symbol: str, report: Dict)
     - If new: Just inserts directly (no AI needed)
     """
     try:
-        pdf_url = report['file_url']
+        # Development bank API handlers return 'pdf_url', not 'file_url'
+        pdf_url = report.get('pdf_url') or report.get('file_url')
 
         # ✅ STEP 1: Check if PDF URL already exists in database
         print(f"🔍 Checking if PDF URL already exists in development banks...")
@@ -1021,28 +1022,66 @@ def fetch_from_jbbl_api(fiscal_year: str, report_type: str, quarter: Optional[st
         category_name = config['annual_category'] if report_type == 'annual' else config['quarterly_category']
         print(f"  Looking for category: {category_name}, Fiscal Year: {target_fy}")
 
+        # Debug: Show all categories
+        all_categories = [cat.get("name", "") for cat in data["data"]["documentCategory"]]
+        print(f"  Available categories: {all_categories}")
+
         # Search through categories
         for category in data["data"]["documentCategory"]:
             if category_name.lower() not in category.get("name", "").lower():
                 continue
 
             print(f"  ✓ Found category: {category.get('name')}")
+            print(f"     Subcategories: {len(category.get('subCategories', []))}")
+
+            docs_checked = 0
+            docs_matching_fy = 0
 
             # Search through subcategories
             for sub_category in category.get("subCategories", []):
                 # Search through documents
                 for doc in sub_category.get("documents", []):
+                    docs_checked += 1
                     doc_fy = normalize_fiscal_year_format(doc.get("fiscal_year", ""))
+
+                    if doc_fy != target_fy:
+                        continue
+
+                    docs_matching_fy += 1
 
                     if doc_fy != target_fy:
                         continue
 
                     # For quarterly reports, check quarter
                     if report_type == "quarterly" and quarter:
-                        doc_quarter = doc.get("quater")  # Note: API uses "quater" not "quarter"
+                        doc_quarter = None
+                        quater_obj = doc.get("quater")  # Note: API uses "quater" not "quarter"
+
+                        # JBBL has nested quater object: {"systemName": "second_quater", "displayName": "Second Quater"}
+                        if quater_obj:
+                            if isinstance(quater_obj, dict):
+                                # Extract from nested object
+                                system_name = quater_obj.get("systemName", "")
+                                display_name = quater_obj.get("displayName", "")
+
+                                # Try to extract quarter from systemName or displayName
+                                doc_quarter = extract_quarter_from_title(system_name) or extract_quarter_from_title(display_name)
+                            elif isinstance(quater_obj, str):
+                                # If it's a string, use it directly
+                                doc_quarter = extract_quarter_from_title(quater_obj)
+
+                        # If quater field didn't yield a quarter, try other sources
                         if not doc_quarter:
-                            # Try to extract from name
+                            # Try to extract from document name first
                             doc_quarter = extract_quarter_from_title(doc.get("name", ""))
+
+                            # If still not found, try subcategory name
+                            if not doc_quarter:
+                                doc_quarter = extract_quarter_from_title(sub_category.get("name", ""))
+
+                        # Debug output for quarterly matching
+                        quater_display = quater_obj.get("displayName", "") if isinstance(quater_obj, dict) else quater_obj
+                        print(f"     Checking doc: {doc.get('name')[:50]}... | FY: {doc_fy} | Quarter obj: {quater_display} | Extracted: {doc_quarter}")
 
                         if doc_quarter != quarter:
                             continue
@@ -1065,7 +1104,10 @@ def fetch_from_jbbl_api(fiscal_year: str, report_type: str, quarter: Optional[st
                         "source": "jbbl_api"
                     }
 
-        print(f"  ❌ No matching document found")
+            # Show summary
+            print(f"  📊 Summary: Checked {docs_checked} documents, {docs_matching_fy} matched fiscal year {target_fy}")
+
+        print(f"  ❌ No matching document found for {target_fy} {quarter if quarter else ''}")
         return None
 
     except Exception as e:
@@ -1090,17 +1132,19 @@ def fetch_from_grdbl_api(fiscal_year: str, report_type: str, quarter: Optional[s
             print(f"  ❌ Unexpected GRDBL API structure")
             return None
 
-        # Normalize target fiscal year
+        # Normalize target fiscal year (e.g., "2080/81")
         target_fy = normalize_fiscal_year_format(fiscal_year)
-
         print(f"  Target fiscal year: {target_fy}")
 
         # Search through reports
         for item in data:
-            # Extract fiscal year from nested object
+            # --- FIX 1: Handle Fiscal Year Format ---
             fy_obj = item.get("fiscal_year", {})
             if isinstance(fy_obj, dict):
-                doc_fy = normalize_fiscal_year_format(fy_obj.get("title", ""))
+                raw_fy = fy_obj.get("title", "")
+                # API returns "2080-2081", we need "2080/2081" to normalize correctly
+                raw_fy = raw_fy.replace("-", "/")
+                doc_fy = normalize_fiscal_year_format(raw_fy)
             else:
                 doc_fy = ""
 
@@ -1115,15 +1159,26 @@ def fetch_from_grdbl_api(fiscal_year: str, report_type: str, quarter: Optional[s
 
             # Match report type
             if report_type == "annual":
+                # Matches "Annual report", "Tenth and Eleventh Combined Annual Report"
                 if "annual" not in report_type_name:
                     continue
             elif report_type == "quarterly":
+                # Matches "Quarterly Report", "NFRS Quarterly Report"
                 if "quarterly" not in report_type_name and "interim" not in report_type_name:
                     continue
 
                 # Check quarter
                 if quarter:
-                    doc_quarter = extract_quarter_from_title(item.get("name", ""))
+                    doc_name = item.get("name", "")
+
+                    # --- FIX 2: Handle specific GRDBL spellings locally if needed ---
+                    # GRDBL uses "Aasadh" (ID 43), "Ashad", "Ashadh"
+                    doc_quarter = extract_quarter_from_title(doc_name)
+
+                    # Fallback for "Aasadh" if not in your main helper
+                    if not doc_quarter and "aasadh" in doc_name.lower():
+                        doc_quarter = "Q4"
+
                     if doc_quarter != quarter:
                         continue
 
@@ -1143,7 +1198,7 @@ def fetch_from_grdbl_api(fiscal_year: str, report_type: str, quarter: Optional[s
                 "source": "grdbl_api"
             }
 
-        print(f"  ❌ No matching document found")
+        print(f"  ❌ No matching document found for {target_fy}")
         return None
 
     except Exception as e:
@@ -1170,19 +1225,24 @@ def fetch_from_sapdbl_api(fiscal_year: str, report_type: str, quarter: Optional[
             print(f"  ❌ Unexpected SAPDBL API structure")
             return None
 
-        # Normalize target fiscal year
+        # Normalize target fiscal year (e.g., "2081/82")
         target_fy = normalize_fiscal_year_format(fiscal_year)
-
         print(f"  Target fiscal year: {target_fy}")
 
         # Search through fiscal year groups
         for fy_group in data["items"]["en"]:
-            group_fy = normalize_fiscal_year_format(fy_group.get("title", ""))
+            raw_group_title = fy_group.get("title", "")
 
-            if group_fy != target_fy:
+            # FIX 1: Handle Hyphens (e.g., "2081-82" -> "2081/82")
+            clean_title = raw_group_title.replace("-", "/")
+
+            # FIX 2: Handle Combined Years (e.g., "2077/78 2078/79")
+            # Instead of exact match, check if target FY is IN the group title
+            # We normalize both to ensure format consistency
+            if target_fy not in normalize_fiscal_year_format(clean_title):
                 continue
 
-            print(f"  ✓ Found fiscal year group: {fy_group.get('title')}")
+            print(f"  ✓ Found fiscal year group: {raw_group_title}")
 
             # Search through child documents
             for doc in fy_group.get("child", []):
@@ -1191,6 +1251,19 @@ def fetch_from_sapdbl_api(fiscal_year: str, report_type: str, quarter: Optional[
                 # For quarterly reports, check quarter
                 if report_type == "quarterly" and quarter:
                     doc_quarter = extract_quarter_from_title(doc_name)
+
+                    # Handle specific case if 'end' or 'ending' confuses the extractor
+                    if not doc_quarter:
+                        # Fallback for SAPDBL naming conventions if needed
+                        if "ashoj" in doc_name.lower() or "asoj" in doc_name.lower():
+                            doc_quarter = "Q1"
+                        elif "poush" in doc_name.lower() or "pus" in doc_name.lower():
+                            doc_quarter = "Q2"
+                        elif "chaitra" in doc_name.lower():
+                            doc_quarter = "Q3"
+                        elif "ashadh" in doc_name.lower() or "ashad" in doc_name.lower():
+                            doc_quarter = "Q4"
+
                     if doc_quarter != quarter:
                         continue
 
@@ -1210,7 +1283,7 @@ def fetch_from_sapdbl_api(fiscal_year: str, report_type: str, quarter: Optional[
                     "source": "sapdbl_api"
                 }
 
-        print(f"  ❌ No matching document found")
+        print(f"  ❌ No matching document found for {target_fy}")
         return None
 
     except Exception as e:
@@ -1273,11 +1346,47 @@ def extract_fiscal_year_from_title(title: str) -> Optional[str]:
 
 
 def extract_quarter_from_title(title: str) -> Optional[str]:
+    """
+    Extract quarter from title - handles English, Nepali months, and various formats
+    """
+    if not title:
+        return None
+
     title = title.lower()
-    keywords = {'q1': 'Q1', 'q2': 'Q2', 'q3': 'Q3', 'q4': 'Q4', '1st': 'Q1', '2nd': 'Q2', '3rd': 'Q3', '4th': 'Q4',
-                'first': 'Q1', 'second': 'Q2', 'third': 'Q3', 'fourth': 'Q4'}
+
+    # Nepali month to quarter mapping
+    nepali_months = {
+        # Q1 months (Shrawan to Ashwin - July to October)
+        'shrawan': 'Q1', 'sawan': 'Q1', 'ashwin': 'Q1', 'ashoj': 'Q1', 'asoj': 'Q1',
+        # Q2 months (Kartik to Poush - November to January)
+        'kartik': 'Q2', 'mangsir': 'Q2', 'poush': 'Q2', 'magh': 'Q2',
+        # Q3 months (Falgun to Chaitra - February to April)
+        'falgun': 'Q3', 'chaitra': 'Q3', 'chait': 'Q3',
+        # Q4 months (Baisakh to Ashadh - May to July)
+        'baisakh': 'Q4', 'jestha': 'Q4', 'ashadh': 'Q4', 'ashad': 'Q4', 'ashar': 'Q4'
+    }
+
+    # Check Nepali months first
+    for month, qtr in nepali_months.items():
+        if month in title:
+            return qtr
+
+    # English keywords
+    keywords = {
+        'q1': 'Q1', 'q2': 'Q2', 'q3': 'Q3', 'q4': 'Q4',
+        '1st': 'Q1', '2nd': 'Q2', '3rd': 'Q3', '4th': 'Q4',
+        'first': 'Q1', 'second': 'Q2', 'third': 'Q3', 'fourth': 'Q4',
+        'quarter 1': 'Q1', 'quarter 2': 'Q2', 'quarter 3': 'Q3', 'quarter 4': 'Q4',
+        'quarter-1': 'Q1', 'quarter-2': 'Q2', 'quarter-3': 'Q3', 'quarter-4': 'Q4',
+        # JBBL API uses "quater" (typo) instead of "quarter"
+        'first_quater': 'Q1', 'second_quater': 'Q2', 'third_quater': 'Q3', 'fourth_quater': 'Q4',
+        'first quater': 'Q1', 'second quater': 'Q2', 'third quater': 'Q3', 'fourth quater': 'Q4'
+    }
+
     for k, v in keywords.items():
-        if k in title: return v
+        if k in title:
+            return v
+
     return None
 
 
@@ -1782,7 +1891,7 @@ def get_dev_bank_annual_report(bank_symbol: str, fiscal_year: str):
         "source": "scraped",
         "bank_symbol": bank_symbol,
         "fiscal_year": report['fiscal_year'],
-        "pdf_url": report['file_url']
+        "pdf_url": report.get('pdf_url') or report.get('file_url')
     }
 
 
@@ -1870,7 +1979,7 @@ def get_dev_bank_quarterly_report(bank_symbol: str, fiscal_year: str, quarter: s
         "bank_symbol": bank_symbol,
         "fiscal_year": report['fiscal_year'],
         "quarter": quarter,
-        "pdf_url": report['file_url']
+        "pdf_url": report.get('pdf_url') or report.get('file_url')
     }
 
 

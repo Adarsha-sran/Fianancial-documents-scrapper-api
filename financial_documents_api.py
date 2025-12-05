@@ -7,6 +7,7 @@ import os
 import re
 import time
 import requests
+import google.generativeai as genai
 from datetime import datetime
 from typing import Optional, Dict, List
 from dotenv import load_dotenv
@@ -19,6 +20,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
+GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")  # Gemini API key is stored as GOOGLE_API_KEY
 
 # Validate required environment variables
 if not SUPABASE_URL or not SUPABASE_KEY:
@@ -27,8 +29,15 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 if not FIRECRAWL_API_KEY:
     raise ValueError("FIRECRAWL_API_KEY must be set in environment variables")
 
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY must be set in environment variables")
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 firecrawl = Firecrawl(api_key=FIRECRAWL_API_KEY)
+
+# Configure Gemini AI
+genai.configure(api_key=GEMINI_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
 app = FastAPI(
     title="Financial Documents API",
@@ -104,18 +113,147 @@ DYNAMIC_API_BANKS = {
 }
 
 
+# ============================================================================
+# DEVELOPMENT BANK DYNAMIC API CONFIGURATION
+# ============================================================================
+
+DEV_BANK_DYNAMIC_API = {
+    "JBBL": {
+        "name": "Jyoti Bikas Bank",
+        "api_base": "https://web-cms.jbbl.com.np/framework/api/frontend/document/list",
+        "file_base": "https://web-cms.jbbl.com.np/framework/",
+        "method": "jbbl_api",
+        "annual_category": "Annual Reports",
+        "quarterly_category": "Quarterly Reports"
+    },
+    "GRDBL": {
+        "name": "Green Development Bank",
+        "api_base": "https://greenbank.com.np/api/report",
+        "file_base": "",  # Full URLs in response
+        "method": "grdbl_api"
+    },
+    "SAPDBL": {
+        "name": "Saptakoshi Development Bank",
+        "annual_api": "https://admin.skdbl.com.np/api/reports/all/annual-report",
+        "quarterly_api": "https://admin.skdbl.com.np/api/reports/all/quarterly-report",
+        "file_base": "https://admin.skdbl.com.np/",
+        "method": "sapdbl_api"
+    }
+}
+
+
 def normalize_fiscal_year_format(fiscal_year: str) -> str:
-    """Normalize fiscal year to short format (2078/79)"""
-    if not fiscal_year or '/' not in fiscal_year:
+    """Normalize fiscal year to YYYY/YY format"""
+    if not fiscal_year:
+        return fiscal_year
+    fiscal_year = fiscal_year.strip()
+    if '/' not in fiscal_year:
         return fiscal_year
     parts = fiscal_year.split('/')
     if len(parts) != 2:
         return fiscal_year
-    year1 = parts[0].strip()
-    year2 = parts[1].strip()
-    if len(year2) == 4:
-        year2 = year2[-2:]
-    return f"{year1}/{year2}"
+    year1, year2 = parts[0].strip(), parts[1].strip()
+    if len(year1) == 4 and len(year2) == 4:
+        fiscal_year = f"{year1}/{year2[-2:]}"
+    return fiscal_year
+
+
+def extract_metadata_from_pdf_url(pdf_url: str, bank_symbol: str) -> Optional[Dict]:
+    """
+    Extract metadata (fiscal year, report type, quarter) from PDF using Google Gemini AI
+    This ensures accurate metadata even if the URL or filename is misleading
+    """
+    import tempfile
+    import json
+
+    try:
+        print(f"🤖 Using Gemini AI to extract metadata from PDF...")
+
+        # Download PDF content
+        response = requests.get(pdf_url, timeout=30, verify=False, stream=True)
+        if response.status_code != 200:
+            print(f"   ❌ Failed to download PDF: {response.status_code}")
+            return None
+
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            # Get PDF bytes (limit to first 5MB to avoid timeout)
+            chunk_size = 1024 * 1024  # 1MB chunks
+            max_size = 5 * 1024 * 1024  # 5MB limit
+            total_size = 0
+
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                tmp_file.write(chunk)
+                total_size += len(chunk)
+                if total_size >= max_size:
+                    break
+
+            tmp_path = tmp_file.name
+
+        print(f"   📄 PDF downloaded: {total_size} bytes")
+
+        # Prepare prompt for Gemini
+        prompt = f"""
+Analyze this financial report PDF and extract ONLY the following metadata:
+
+1. **Fiscal Year**: In format YYYY/YY (e.g., 2078/79 for Nepali, or 2021/22 for English)
+2. **Report Type**: Either "annual" or "quarterly"
+3. **Quarter**: If quarterly, specify Q1, Q2, Q3, or Q4. If annual, leave as null.
+
+IMPORTANT RULES:
+- Look for fiscal year mentions like "FY 2078/79", "Fiscal Year 2078/79", "वित्तीय वर्ष २०७८/७९"
+- For Nepali years (above 2030), use format like 2078/79
+- For English years (below 2030), use format like 2021/22
+- Annual reports: Look for "Annual Report", "Yearly Report", "वार्षिक प्रतिवेदन"
+- Quarterly reports: Look for "Quarterly", "Q1", "Q2", "Q3", "Q4", "First Quarter", "त्रैमासिक"
+- If you find "Ashad End" with a year, that's typically an annual report (not Q4)
+
+Return ONLY a JSON object in this exact format:
+{{
+  "fiscal_year": "YYYY/YY",
+  "report_type": "annual" or "quarterly",
+  "quarter": "Q1" or "Q2" or "Q3" or "Q4" or null,
+  "confidence": "high" or "medium" or "low"
+}}
+
+Bank: {bank_symbol}
+"""
+
+        try:
+            # Upload PDF to Gemini
+            uploaded_file = genai.upload_file(tmp_path, mime_type="application/pdf")
+
+            # Generate response
+            response = gemini_model.generate_content([prompt, uploaded_file])
+
+            # Clean response and parse JSON
+            response_text = response.text.strip()
+
+            # Remove markdown code blocks if present
+            if response_text.startswith('```'):
+                response_text = response_text.split('```')[1]
+                if response_text.startswith('json'):
+                    response_text = response_text[4:]
+                response_text = response_text.strip()
+
+            metadata = json.loads(response_text)
+
+            # Normalize fiscal year
+            if metadata.get('fiscal_year'):
+                metadata['fiscal_year'] = normalize_fiscal_year_format(metadata['fiscal_year'])
+
+            print(f"   ✅ Metadata extracted: {metadata}")
+            return metadata
+
+        finally:
+            # Clean up temporary file
+            import os
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    except Exception as e:
+        print(f"   ⚠️ Failed to extract metadata with Gemini: {e}")
+        return None
 
 
 def normalize_fiscal_year(fiscal_year: str) -> tuple:
@@ -141,6 +279,18 @@ def get_bank_info(bank_symbol: str) -> Optional[Dict]:
         return None
     except Exception as e:
         print(f"Error fetching bank info: {e}")
+        return None
+
+
+def get_development_bank_info(bank_symbol: str) -> Optional[Dict]:
+    """Fetch development bank information from database"""
+    try:
+        result = supabase.table("development_banks").select("*").eq("symbol", bank_symbol.upper()).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
+    except Exception as e:
+        print(f"Error fetching development bank info: {e}")
         return None
 
 
@@ -177,6 +327,42 @@ def check_document_exists(bank_id: int, fiscal_year: str, report_type: str, quar
         return None
     except Exception as e:
         print(f"Error checking document: {e}")
+        return None
+
+
+def check_dev_bank_document_exists(bank_id: int, fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[
+    Dict]:
+    """Check if document already exists in development_banks_documents table"""
+    try:
+        query = supabase.table("development_banks_documents").select("*").eq("bank_id", bank_id).eq("fiscal_year",
+                                                                                            fiscal_year).eq(
+            "report_type", report_type)
+        if quarter:
+            query = query.eq("quarter", quarter)
+        else:
+            query = query.is_("quarter", "null")
+        result = query.execute()
+
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+        alt_fy = english_fy if fiscal_year == nepali_fy else nepali_fy
+
+        if alt_fy != fiscal_year:
+            query_alt = supabase.table("development_banks_documents").select("*").eq("bank_id", bank_id).eq("fiscal_year",
+                                                                                                    alt_fy).eq(
+                "report_type", report_type)
+            if quarter:
+                query_alt = query_alt.eq("quarter", quarter)
+            else:
+                query_alt = query_alt.is_("quarter", "null")
+            result_alt = query_alt.execute()
+            if result_alt.data and len(result_alt.data) > 0:
+                return result_alt.data[0]
+        return None
+    except Exception as e:
+        print(f"Error checking development bank document: {e}")
         return None
 
 
@@ -614,19 +800,452 @@ def scrape_specific_report(bank: Dict, fiscal_year: str, report_type: str, quart
 
 
 def insert_document_to_db(bank_id: int, bank_symbol: str, report: Dict) -> Dict:
+    """
+    Insert document with strict PDF URL uniqueness
+    - Checks if PDF URL already exists (prevents duplicates)
+    - If duplicate: Uses Gemini AI to verify which metadata is correct
+    - If new: Just inserts directly (no AI needed)
+    """
     try:
+        pdf_url = report['file_url']
+
+        # ✅ STEP 1: Check if PDF URL already exists in database
+        print(f"🔍 Checking if PDF URL already exists...")
+        existing = supabase.table("financial_documents").select("*").eq("pdf_url", pdf_url).execute()
+
+        if existing.data and len(existing.data) > 0:
+            # ⚠️ DUPLICATE FOUND - Use AI to determine correct metadata
+            existing_doc = existing.data[0]
+            print(f"⚠️  PDF URL already exists in database!")
+            print(f"   Existing: fiscal_year={existing_doc.get('fiscal_year')}, report_type={existing_doc.get('report_type')}, quarter={existing_doc.get('quarter')}")
+            print(f"   Requested: fiscal_year={report.get('fiscal_year')}, report_type={report.get('report_type')}, quarter={report.get('quarter')}")
+
+            # ✅ STEP 2: Use Gemini AI to verify which metadata is correct
+            print(f"🤖 Using Gemini AI to verify correct metadata...")
+            ai_metadata = extract_metadata_from_pdf_url(pdf_url, bank_symbol)
+
+            if ai_metadata and ai_metadata.get('confidence') in ['high', 'medium']:
+                ai_fiscal_year = ai_metadata.get('fiscal_year')
+                ai_report_type = ai_metadata.get('report_type')
+                ai_quarter = ai_metadata.get('quarter')
+
+                print(f"   AI Result: fiscal_year={ai_fiscal_year}, report_type={ai_report_type}, quarter={ai_quarter}")
+
+                # Check if existing data matches AI extraction
+                metadata_matches = (
+                    existing_doc.get('fiscal_year') == ai_fiscal_year and
+                    existing_doc.get('report_type') == ai_report_type and
+                    existing_doc.get('quarter') == ai_quarter
+                )
+
+                if metadata_matches:
+                    print(f"   ✅ Existing metadata is CORRECT. Returning existing record.")
+                    return existing_doc
+                else:
+                    # ✅ STEP 3: Update existing record with correct AI-verified metadata
+                    print(f"   ⚠️  Existing metadata is INCORRECT. Updating with AI-verified data...")
+                    update_data = {
+                        'fiscal_year': ai_fiscal_year,
+                        'report_type': ai_report_type,
+                        'quarter': ai_quarter,
+                        'scraped_at': datetime.now().isoformat(),
+                        'method': 'api'
+                    }
+
+                    updated = supabase.table("financial_documents")\
+                        .update(update_data)\
+                        .eq("id", existing_doc['id'])\
+                        .execute()
+
+                    if updated.data and len(updated.data) > 0:
+                        print(f"   ✅ Metadata corrected successfully!")
+                        return updated.data[0]
+            else:
+                print(f"   ⚠️  AI extraction failed or low confidence. Keeping existing record.")
+                return existing_doc
+
+        # ✅ NEW PDF URL - Just insert directly (no AI verification needed)
+        print(f"✅ PDF URL is new. Inserting directly...")
+
         doc_data = {
-            'bank_id': bank_id, 'bank_symbol': bank_symbol, 'pdf_url': report['file_url'],
-            'fiscal_year': report['fiscal_year'], 'report_type': report['report_type'],
-            'quarter': report.get('quarter'), 'scraped_at': datetime.now().isoformat(), 'method': 'api'
+            'bank_id': bank_id,
+            'bank_symbol': bank_symbol,
+            'pdf_url': pdf_url,
+            'fiscal_year': report['fiscal_year'],
+            'report_type': report['report_type'],
+            'quarter': report.get('quarter'),
+            'scraped_at': datetime.now().isoformat(),
+            'method': 'api'
         }
+
         result = supabase.table("financial_documents").insert(doc_data).execute()
-        if result.data and len(result.data) > 0: return result.data[0]
+        if result.data and len(result.data) > 0:
+            print(f"   ✅ Document inserted successfully!")
+            return result.data[0]
         return None
+
     except Exception as e:
-        print(f"Error inserting document: {e}")
+        # Handle unique constraint violations gracefully
+        if "unique constraint" in str(e).lower() or "duplicate" in str(e).lower():
+            print(f"⚠️  Duplicate constraint violation detected")
+            # Fetch and return existing document
+            existing = supabase.table("financial_documents").select("*").eq("pdf_url", report['file_url']).execute()
+            if existing.data:
+                return existing.data[0]
+        print(f"❌ Error inserting document: {e}")
         raise
 
+
+def insert_dev_bank_document_to_db(bank_id: int, bank_symbol: str, report: Dict) -> Dict:
+    """
+    Insert development bank document with strict PDF URL uniqueness
+    - Checks if PDF URL already exists (prevents duplicates)
+    - If duplicate: Uses Gemini AI to verify which metadata is correct
+    - If new: Just inserts directly (no AI needed)
+    """
+    try:
+        pdf_url = report['file_url']
+
+        # ✅ STEP 1: Check if PDF URL already exists in database
+        print(f"🔍 Checking if PDF URL already exists in development banks...")
+        existing = supabase.table("development_banks_documents").select("*").eq("pdf_url", pdf_url).execute()
+
+        if existing.data and len(existing.data) > 0:
+            # ⚠️ DUPLICATE FOUND - Use AI to determine correct metadata
+            existing_doc = existing.data[0]
+            print(f"⚠️  PDF URL already exists in database!")
+            print(f"   Existing: fiscal_year={existing_doc.get('fiscal_year')}, report_type={existing_doc.get('report_type')}, quarter={existing_doc.get('quarter')}")
+            print(f"   Requested: fiscal_year={report.get('fiscal_year')}, report_type={report.get('report_type')}, quarter={report.get('quarter')}")
+
+            # ✅ STEP 2: Use Gemini AI to verify which metadata is correct
+            print(f"🤖 Using Gemini AI to verify correct metadata...")
+            ai_metadata = extract_metadata_from_pdf_url(pdf_url, bank_symbol)
+
+            if ai_metadata and ai_metadata.get('confidence') in ['high', 'medium']:
+                ai_fiscal_year = ai_metadata.get('fiscal_year')
+                ai_report_type = ai_metadata.get('report_type')
+                ai_quarter = ai_metadata.get('quarter')
+
+                print(f"   AI Result: fiscal_year={ai_fiscal_year}, report_type={ai_report_type}, quarter={ai_quarter}")
+
+                # Check if existing data matches AI extraction
+                metadata_matches = (
+                    existing_doc.get('fiscal_year') == ai_fiscal_year and
+                    existing_doc.get('report_type') == ai_report_type and
+                    existing_doc.get('quarter') == ai_quarter
+                )
+
+                if metadata_matches:
+                    print(f"   ✅ Existing metadata is CORRECT. Returning existing record.")
+                    return existing_doc
+                else:
+                    # ✅ STEP 3: Update existing record with correct AI-verified metadata
+                    print(f"   ⚠️  Existing metadata is INCORRECT. Updating with AI-verified data...")
+                    update_data = {
+                        'fiscal_year': ai_fiscal_year,
+                        'report_type': ai_report_type,
+                        'quarter': ai_quarter,
+                        'scraped_at': datetime.now().isoformat(),
+                        'method': 'api'
+                    }
+
+                    updated = supabase.table("development_banks_documents")\
+                        .update(update_data)\
+                        .eq("id", existing_doc['id'])\
+                        .execute()
+
+                    if updated.data and len(updated.data) > 0:
+                        print(f"   ✅ Metadata corrected successfully!")
+                        return updated.data[0]
+            else:
+                print(f"   ⚠️  AI extraction failed or low confidence. Keeping existing record.")
+                return existing_doc
+
+        # ✅ NEW PDF URL - Just insert directly (no AI verification needed)
+        print(f"✅ PDF URL is new. Inserting directly...")
+
+        doc_data = {
+            'bank_id': bank_id,
+            'bank_symbol': bank_symbol,
+            'pdf_url': pdf_url,
+            'fiscal_year': report['fiscal_year'],
+            'report_type': report['report_type'],
+            'quarter': report.get('quarter'),
+            'scraped_at': datetime.now().isoformat(),
+            'method': 'api'
+        }
+
+        result = supabase.table("development_banks_documents").insert(doc_data).execute()
+        if result.data and len(result.data) > 0:
+            print(f"   ✅ Development bank document inserted successfully!")
+            return result.data[0]
+        return None
+
+    except Exception as e:
+        # Handle unique constraint violations gracefully
+        if "unique constraint" in str(e).lower() or "duplicate" in str(e).lower():
+            print(f"⚠️  Duplicate constraint violation detected")
+            # Fetch and return existing document
+            existing = supabase.table("development_banks_documents").select("*").eq("pdf_url", report['file_url']).execute()
+            if existing.data:
+                return existing.data[0]
+        print(f"❌ Error inserting development bank document: {e}")
+        raise
+
+
+# ============================================================================
+# DEVELOPMENT BANK DYNAMIC API HANDLERS
+# ============================================================================
+
+def fetch_from_jbbl_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch document from JBBL (Jyoti Bikas Bank) API"""
+    config = DEV_BANK_DYNAMIC_API["JBBL"]
+    try:
+        print(f"  Fetching from JBBL API: {config['api_base']}")
+        response = requests.get(config['api_base'], timeout=15)
+
+        if response.status_code != 200:
+            print(f"  ❌ JBBL API returned status {response.status_code}")
+            return None
+
+        data = response.json()
+
+        if "data" not in data or "documentCategory" not in data["data"]:
+            print(f"  ❌ Unexpected JBBL API structure")
+            return None
+
+        # Normalize target fiscal year
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        # Determine which category to search
+        category_name = config['annual_category'] if report_type == 'annual' else config['quarterly_category']
+        print(f"  Looking for category: {category_name}, Fiscal Year: {target_fy}")
+
+        # Search through categories
+        for category in data["data"]["documentCategory"]:
+            if category_name.lower() not in category.get("name", "").lower():
+                continue
+
+            print(f"  ✓ Found category: {category.get('name')}")
+
+            # Search through subcategories
+            for sub_category in category.get("subCategories", []):
+                # Search through documents
+                for doc in sub_category.get("documents", []):
+                    doc_fy = normalize_fiscal_year_format(doc.get("fiscal_year", ""))
+
+                    if doc_fy != target_fy:
+                        continue
+
+                    # For quarterly reports, check quarter
+                    if report_type == "quarterly" and quarter:
+                        doc_quarter = doc.get("quater")  # Note: API uses "quater" not "quarter"
+                        if not doc_quarter:
+                            # Try to extract from name
+                            doc_quarter = extract_quarter_from_title(doc.get("name", ""))
+
+                        if doc_quarter != quarter:
+                            continue
+
+                    # Found matching document
+                    file_path = doc.get("file", "")
+                    if not file_path:
+                        continue
+
+                    pdf_url = f"{config['file_base'].rstrip('/')}/{file_path.lstrip('/')}"
+
+                    print(f"  ✅ Found matching document: {doc.get('name')}")
+
+                    return {
+                        "fiscal_year": target_fy,
+                        "report_type": report_type,
+                        "quarter": quarter,
+                        "pdf_url": pdf_url,
+                        "document_name": doc.get("name", ""),
+                        "source": "jbbl_api"
+                    }
+
+        print(f"  ❌ No matching document found")
+        return None
+
+    except Exception as e:
+        print(f"  ❌ JBBL API Error: {e}")
+        return None
+
+
+def fetch_from_grdbl_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch document from GRDBL (Green Development Bank) API"""
+    config = DEV_BANK_DYNAMIC_API["GRDBL"]
+    try:
+        print(f"  Fetching from GRDBL API: {config['api_base']}")
+        response = requests.get(config['api_base'], timeout=15)
+
+        if response.status_code != 200:
+            print(f"  ❌ GRDBL API returned status {response.status_code}")
+            return None
+
+        data = response.json()
+
+        if not isinstance(data, list):
+            print(f"  ❌ Unexpected GRDBL API structure")
+            return None
+
+        # Normalize target fiscal year
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        print(f"  Target fiscal year: {target_fy}")
+
+        # Search through reports
+        for item in data:
+            # Extract fiscal year from nested object
+            fy_obj = item.get("fiscal_year", {})
+            if isinstance(fy_obj, dict):
+                doc_fy = normalize_fiscal_year_format(fy_obj.get("title", ""))
+            else:
+                doc_fy = ""
+
+            if doc_fy != target_fy:
+                continue
+
+            # Check report type
+            report_type_obj = item.get("report_type", {})
+            report_type_name = ""
+            if isinstance(report_type_obj, dict):
+                report_type_name = report_type_obj.get("name", "").lower()
+
+            # Match report type
+            if report_type == "annual":
+                if "annual" not in report_type_name:
+                    continue
+            elif report_type == "quarterly":
+                if "quarterly" not in report_type_name and "interim" not in report_type_name:
+                    continue
+
+                # Check quarter
+                if quarter:
+                    doc_quarter = extract_quarter_from_title(item.get("name", ""))
+                    if doc_quarter != quarter:
+                        continue
+
+            # Found matching document
+            pdf_url = item.get("file", "")
+            if not pdf_url:
+                continue
+
+            print(f"  ✅ Found matching document: {item.get('name')}")
+
+            return {
+                "fiscal_year": target_fy,
+                "report_type": report_type,
+                "quarter": quarter,
+                "pdf_url": pdf_url,
+                "document_name": item.get("name", ""),
+                "source": "grdbl_api"
+            }
+
+        print(f"  ❌ No matching document found")
+        return None
+
+    except Exception as e:
+        print(f"  ❌ GRDBL API Error: {e}")
+        return None
+
+
+def fetch_from_sapdbl_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch document from SAPDBL (Saptakoshi Development Bank) API"""
+    config = DEV_BANK_DYNAMIC_API["SAPDBL"]
+    try:
+        api_url = config["annual_api"] if report_type == "annual" else config["quarterly_api"]
+
+        print(f"  Fetching from SAPDBL API: {api_url}")
+        response = requests.get(api_url, timeout=15)
+
+        if response.status_code != 200:
+            print(f"  ❌ SAPDBL API returned status {response.status_code}")
+            return None
+
+        data = response.json()
+
+        if "items" not in data or "en" not in data["items"]:
+            print(f"  ❌ Unexpected SAPDBL API structure")
+            return None
+
+        # Normalize target fiscal year
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        print(f"  Target fiscal year: {target_fy}")
+
+        # Search through fiscal year groups
+        for fy_group in data["items"]["en"]:
+            group_fy = normalize_fiscal_year_format(fy_group.get("title", ""))
+
+            if group_fy != target_fy:
+                continue
+
+            print(f"  ✓ Found fiscal year group: {fy_group.get('title')}")
+
+            # Search through child documents
+            for doc in fy_group.get("child", []):
+                doc_name = doc.get("title", "")
+
+                # For quarterly reports, check quarter
+                if report_type == "quarterly" and quarter:
+                    doc_quarter = extract_quarter_from_title(doc_name)
+                    if doc_quarter != quarter:
+                        continue
+
+                # Found matching document
+                pdf_url = doc.get("file", "")
+                if not pdf_url:
+                    continue
+
+                print(f"  ✅ Found matching document: {doc_name}")
+
+                return {
+                    "fiscal_year": target_fy,
+                    "report_type": report_type,
+                    "quarter": quarter,
+                    "pdf_url": pdf_url,
+                    "document_name": doc_name,
+                    "source": "sapdbl_api"
+                }
+
+        print(f"  ❌ No matching document found")
+        return None
+
+    except Exception as e:
+        print(f"  ❌ SAPDBL API Error: {e}")
+        return None
+
+
+def has_dev_bank_dynamic_api(bank_symbol: str) -> bool:
+    """Check if development bank has dynamic API support"""
+    return bank_symbol.upper() in DEV_BANK_DYNAMIC_API
+
+
+def fetch_from_dev_bank_api(bank_symbol: str, fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Main dispatcher for development bank dynamic APIs"""
+    bank_symbol = bank_symbol.upper()
+
+    if not has_dev_bank_dynamic_api(bank_symbol):
+        return None
+
+    config = DEV_BANK_DYNAMIC_API[bank_symbol]
+    print(f"  Using dynamic API for {bank_symbol} ({config['name']})")
+
+    if bank_symbol == "JBBL":
+        return fetch_from_jbbl_api(fiscal_year, report_type, quarter)
+    elif bank_symbol == "GRDBL":
+        return fetch_from_grdbl_api(fiscal_year, report_type, quarter)
+    elif bank_symbol == "SAPDBL":
+        return fetch_from_sapdbl_api(fiscal_year, report_type, quarter)
+
+    return None
+
+
+# ============================================================================
+# COMMERCIAL BANK DYNAMIC API DISPATCHER
+# ============================================================================
 
 def fetch_from_dynamic_api(bank_symbol: str, fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> \
         Optional[Dict]:
@@ -1082,6 +1701,177 @@ def sync_dynamic_bank_documents(bank_symbol: str):
             raise HTTPException(status_code=500, detail=f"Error syncing NIMB: {str(e)}")
 
     raise HTTPException(status_code=501, detail=f"Sync not implemented for {bank_symbol}")
+
+
+# ============================================================================
+# DEVELOPMENT BANK ENDPOINTS
+# ============================================================================
+
+@app.get("/dev-bank/annual-report")
+def get_dev_bank_annual_report(bank_symbol: str, fiscal_year: str):
+    """
+    Get annual report for a development bank
+    Similar to commercial bank endpoint but uses development_banks and development_banks_documents tables
+    """
+    bank_symbol = bank_symbol.upper()
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"\n{'='*80}")
+    print(f"📊 DEVELOPMENT BANK ANNUAL REPORT REQUEST: {bank_symbol} - {nepali_fy}")
+    print(f"{'='*80}")
+    print(f"📅 Fiscal Year: {nepali_fy} (Nepali) / {english_fy} (English)")
+
+    # Get bank info from development_banks table
+    bank = get_development_bank_info(bank_symbol)
+    if not bank:
+        raise HTTPException(status_code=404, detail=f"Development Bank '{bank_symbol}' not found")
+
+    print(f"🏦 Bank: {bank.get('bank_name', bank_symbol)} ({bank_symbol})")
+
+    # Check if document exists in database
+    print(f"🔍 Checking database...")
+    existing = check_dev_bank_document_exists(bank['id'], nepali_fy, 'annual') or \
+               check_dev_bank_document_exists(bank['id'], english_fy, 'annual')
+
+    if existing:
+        print(f"✅ Found in database!")
+        return {
+            "status": "found",
+            "source": "database",
+            "bank_symbol": bank_symbol,
+            "fiscal_year": existing['fiscal_year'],
+            "pdf_url": existing['pdf_url']
+        }
+
+    print(f"❌ Not in database.")
+
+    # Check if development bank has dynamic API support
+    if has_dev_bank_dynamic_api(bank_symbol):
+        print(f"🔌 Development Bank has dynamic API support - fetching from API...")
+        api_doc = fetch_from_dev_bank_api(bank_symbol, nepali_fy, 'annual')
+        if api_doc:
+            print(f"✅ Found via dynamic API")
+            # Insert to development banks table
+            inserted = insert_dev_bank_document_to_db(bank['id'], bank_symbol, api_doc)
+            return {
+                "status": "found",
+                "source": "dynamic_api",
+                "bank_symbol": bank_symbol,
+                "fiscal_year": inserted['fiscal_year'],
+                "pdf_url": inserted['pdf_url']
+            }
+        print(f"❌ Not found via dynamic API")
+
+    # Try scraping
+    print(f"🔍 Starting Firecrawl scraping...")
+    report = scrape_specific_report(bank, nepali_fy, 'annual')
+
+    if not report:
+        print(f"❌ Report not found after scraping")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Report not found for {bank_symbol} {nepali_fy} annual. Use /add-document endpoint to add the document first."
+        )
+
+    # Insert to database
+    print(f"💾 Saving to database...")
+    inserted_doc = insert_dev_bank_document_to_db(bank['id'], bank_symbol, report)
+
+    return {
+        "status": "found",
+        "source": "scraped",
+        "bank_symbol": bank_symbol,
+        "fiscal_year": report['fiscal_year'],
+        "pdf_url": report['file_url']
+    }
+
+
+@app.get("/dev-bank/quarterly-report")
+def get_dev_bank_quarterly_report(bank_symbol: str, fiscal_year: str, quarter: str):
+    """
+    Get quarterly report for a development bank
+    Similar to commercial bank endpoint but uses development_banks and development_banks_documents tables
+    """
+    bank_symbol = bank_symbol.upper()
+    quarter = quarter.upper()
+
+    if quarter not in ['Q1', 'Q2', 'Q3', 'Q4']:
+        raise HTTPException(status_code=400, detail="Invalid Quarter. Must be Q1, Q2, Q3, or Q4")
+
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"\n{'='*80}")
+    print(f"📊 DEVELOPMENT BANK QUARTERLY REPORT REQUEST: {bank_symbol} - {nepali_fy} {quarter}")
+    print(f"{'='*80}")
+    print(f"📅 Fiscal Year: {nepali_fy} (Nepali) / {english_fy} (English)")
+    print(f"📅 Quarter: {quarter}")
+
+    # Get bank info from development_banks table
+    bank = get_development_bank_info(bank_symbol)
+    if not bank:
+        raise HTTPException(status_code=404, detail=f"Development Bank '{bank_symbol}' not found")
+
+    print(f"🏦 Bank: {bank.get('bank_name', bank_symbol)} ({bank_symbol})")
+
+    # Check if document exists in database
+    print(f"🔍 Checking database...")
+    existing = check_dev_bank_document_exists(bank['id'], nepali_fy, 'quarterly', quarter) or \
+               check_dev_bank_document_exists(bank['id'], english_fy, 'quarterly', quarter)
+
+    if existing:
+        print(f"✅ Found in database!")
+        return {
+            "status": "found",
+            "source": "database",
+            "bank_symbol": bank_symbol,
+            "fiscal_year": existing['fiscal_year'],
+            "quarter": quarter,
+            "pdf_url": existing['pdf_url']
+        }
+
+    print(f"❌ Not in database.")
+
+    # Check if development bank has dynamic API support
+    if has_dev_bank_dynamic_api(bank_symbol):
+        print(f"🔌 Development Bank has dynamic API support - fetching from API...")
+        api_doc = fetch_from_dev_bank_api(bank_symbol, nepali_fy, 'quarterly', quarter)
+        if api_doc:
+            print(f"✅ Found via dynamic API")
+            # Insert to development banks table
+            inserted = insert_dev_bank_document_to_db(bank['id'], bank_symbol, api_doc)
+            return {
+                "status": "found",
+                "source": "dynamic_api",
+                "bank_symbol": bank_symbol,
+                "fiscal_year": inserted['fiscal_year'],
+                "quarter": quarter,
+                "pdf_url": inserted['pdf_url']
+            }
+        print(f"❌ Not found via dynamic API")
+
+    # Try scraping
+    print(f"🔍 Starting Firecrawl scraping...")
+    report = scrape_specific_report(bank, nepali_fy, 'quarterly', quarter)
+
+    if not report:
+        print(f"❌ Report not found after scraping")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Report not found for {bank_symbol} {nepali_fy} {quarter}. Use /add-document endpoint to add the document first."
+        )
+
+    # Insert to database
+    print(f"💾 Saving to database...")
+    inserted_doc = insert_dev_bank_document_to_db(bank['id'], bank_symbol, report)
+
+    return {
+        "status": "found",
+        "source": "scraped",
+        "bank_symbol": bank_symbol,
+        "fiscal_year": report['fiscal_year'],
+        "quarter": quarter,
+        "pdf_url": report['file_url']
+    }
 
 
 if __name__ == "__main__":

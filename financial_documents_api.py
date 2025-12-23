@@ -142,6 +142,117 @@ DEV_BANK_DYNAMIC_API = {
 }
 
 
+# ============================================================================
+# FINANCE COMPANY DYNAMIC API CONFIGURATION
+# ============================================================================
+
+FINANCE_COMPANY_DYNAMIC_API = {
+    "PFL": {
+        "name": "Pokhara Finance Limited",
+        "annual_api": "https://adm1n.pokharafinance.com.np/api/Reports/all_reports/annualreport",
+        "quarterly_api": "https://adm1n.pokharafinance.com.np/api/Reports/all_reports/quartely-report",
+        "file_base": "", # Full URLs are in response
+        "method": "pfl_api"
+    },
+    "GMFIL": {
+        "name": "Guheswori Merchant Banking & Finance",
+        "annual_api": "https://admin.gmbf.com.np/api/reports/all/annual-report",
+        "quarterly_api": "https://admin.gmbf.com.np/api/reports/all/unaudited-financial-highlights",
+        "file_base": "", # Full URLs are in response
+        "method": "gmfil_api"
+    },
+    "ICFC": {
+        "name": "ICFC Finance Limited",
+        "annual_api": "https://admin.icfcbank.com/api/investor_relation/all/annual-report/",
+        "quarterly_api": "https://admin.icfcbank.com/api/investor_relation/all/financial-report/",
+        "file_base": "", # Full URLs are in response
+        "method": "icfc_api"
+    },
+    "MFIL": {
+        "name": "Manjushree Finance Limited",
+        "api_base": "https://smc.manjushreefinance.com.np/framework/api/frontend/document/list",
+        "file_base": "https://smc.manjushreefinance.com.np/framework/",
+        "method": "mfil_api",
+        "annual_category": "Annual Reports",
+        "quarterly_category": "Quarterly Report"
+    },
+    "PROFL": {
+        "name": "Progressive Finance Limited",
+        "api_url": "https://api.pfltd.com.np/api/investor-documents",
+        "api_token": "frontend_b638742e437e15b46899bfd970d4a0333c73e8cde9240f95203ecc09e6b9e994",
+        "file_base": "http://api.pfltd.com.np/storage/",
+        "method": "profl_api"
+    }
+}
+
+# Finance companies with pagination (Firecrawl handled)
+FINANCE_COMPANY_PAGINATED = {
+    "GFCL": {
+        "name": "Goodwill Finance",
+        "annual_url": "https://goodwillfinance.com.np/downloads/2?page={page}",
+        "quarterly_url": "https://goodwillfinance.com.np/downloads/3?page={page}",
+        "method": "paginated",
+        "max_pages": 3
+    },
+    "SIFC": {
+        "name": "Shree Investment Finance",
+        "annual_url": "https://www.shreefinance.com.np/annual-reports/page/{page}/",
+        "quarterly_url": "https://www.shreefinance.com.np/category/quarterly-report/page/{page}/",
+        "method": "paginated",
+        "max_pages": 3,
+        "ordinal_check": True # For "30th Annual Report" mapping
+    },
+    "SFCL": {
+        "name": "Samriddhi Finance",
+        "annual_url": "https://sfcl.com.np/en/files?page={page}", # Needs filtering by category in prompt
+        "quarterly_url": "https://sfcl.com.np/en/files?page={page}",
+        "method": "paginated",
+        "max_pages": 3
+    }
+}
+
+# Finance companies with static URLs (Direct Firecrawl)
+FINANCE_COMPANY_STATIC = {
+    "NFS": {
+        "name": "Nepal Finance Limited",
+        "annual_url": "https://www.nepalfinance.com.np/download/annual-reports",
+        "quarterly_url": "https://www.nepalfinance.com.np/download/quarterly-unaudited-financial-highlights"
+    },
+    "BFC": {
+        "name": "Best Finance Company",
+        "annual_url": "https://bestfinance.com.np/annual-report/",
+        "quarterly_url": "https://bestfinance.com.np/quarterly-report/"
+    },
+    "CFCL": {
+        "name": "Central Finance Limited",
+        "annual_url": "https://centralfinance.com.np/agm/",
+        "quarterly_url": "https://centralfinance.com.np/financial-highlights/"
+    },
+    "JFL": {
+        "name": "Janaki Finance Company",
+        "annual_url": "https://jfcjanakpur.com.np/annualdetails",
+        "quarterly_url": "https://jfcjanakpur.com.np/financialdetails"
+    },
+    "CMB": {
+        "name": "Capital Merchant Banking",
+        "report_page": "https://cmbfl.com.np/reports/" # Only annual available
+    },
+    "MPFL": {
+        "name": "Multipurpose Finance",
+        "annual_url": "https://www.multipurposefinance.com/financial-information/annual-report",
+        "quarterly_url": "https://www.multipurposefinance.com/financial-information/financial-report"
+    },
+    "RLFL": {
+        "name": "Reliance Finance",
+        "annual_url": "https://reliancenepal.com.np/annual-report",
+        "quarterly_url": "https://reliancenepal.com.np/quarterly-reports"
+    },
+    "GUFL": {
+        "name": "Gurkhas Finance",
+        "annual_url": "https://gurkhasfinance.com.np/type-of-report/annual-report",
+        "quarterly_url": "https://gurkhasfinance.com.np/type-of-report/quarter-report"
+    }
+}
 def normalize_fiscal_year_format(fiscal_year: str) -> str:
     """Normalize fiscal year to YYYY/YY format"""
     if not fiscal_year:
@@ -364,6 +475,138 @@ def check_dev_bank_document_exists(bank_id: int, fiscal_year: str, report_type: 
     except Exception as e:
         print(f"Error checking development bank document: {e}")
         return None
+
+
+# ============================================================================
+# FINANCE COMPANY HELPER FUNCTIONS
+# ============================================================================
+
+def get_finance_company_info(company_symbol: str) -> Optional[Dict]:
+    """Fetch finance company information from database"""
+    try:
+        result = supabase.table("finance_companies").select("*").eq("symbol", company_symbol.upper()).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
+    except Exception as e:
+        print(f"Error fetching finance company info: {e}")
+        return None
+
+
+def check_finance_company_document_exists(company_id: int, fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Check if document already exists in finance_companies_documents table"""
+    try:
+        query = supabase.table("finance_companies_documents").select("*").eq("finance_company_id", company_id).eq("fiscal_year",
+                                                                                            fiscal_year).eq(
+            "report_type", report_type)
+        if quarter:
+            query = query.eq("quarter", quarter)
+        else:
+            query = query.is_("quarter", "null")
+        result = query.execute()
+
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+
+        # Try alternate fiscal year format
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+        alt_fy = english_fy if fiscal_year == nepali_fy else nepali_fy
+
+        if alt_fy != fiscal_year:
+            query_alt = supabase.table("finance_companies_documents").select("*").eq("finance_company_id", company_id).eq("fiscal_year",
+                                                                                                    alt_fy).eq(
+                "report_type", report_type)
+            if quarter:
+                query_alt = query_alt.eq("quarter", quarter)
+            else:
+                query_alt = query_alt.is_("quarter", "null")
+            result_alt = query_alt.execute()
+            if result_alt.data and len(result_alt.data) > 0:
+                return result_alt.data[0]
+        return None
+    except Exception as e:
+        print(f"Error checking finance company document: {e}")
+        return None
+
+
+def has_finance_company_dynamic_api(company_symbol: str) -> bool:
+    """Check if finance company has dynamic API support"""
+    return company_symbol.upper() in FINANCE_COMPANY_DYNAMIC_API
+
+
+def has_finance_company_pagination(company_symbol: str) -> bool:
+    """Check if finance company uses pagination"""
+    return company_symbol.upper() in FINANCE_COMPANY_PAGINATED
+
+
+def insert_finance_company_document_to_db(company_id: int, company_symbol: str, report: Dict) -> Dict:
+    """
+    Insert finance company document to database with duplicate checking
+    If PDF URL already exists, update metadata if gemini extraction provides better data
+    """
+    try:
+        pdf_url = report.get('pdf_url') or report.get('file_url')
+        if not pdf_url:
+            raise ValueError("No PDF URL found in report data")
+
+        # Check if PDF URL already exists
+        existing = supabase.table("finance_companies_documents").select("*").eq("pdf_url", pdf_url).execute()
+
+        if existing.data and len(existing.data) > 0:
+            print(f"   📄 PDF URL already exists in database")
+            existing_doc = existing.data[0]
+
+            # Check if we have better metadata from Gemini
+            should_update = False
+            update_data = {}
+
+            # If existing record missing fiscal year but we have it
+            if not existing_doc.get('fiscal_year') and report.get('fiscal_year'):
+                should_update = True
+                update_data['fiscal_year'] = report['fiscal_year']
+
+            # If existing record missing quarter but we have it
+            if not existing_doc.get('quarter') and report.get('quarter'):
+                should_update = True
+                update_data['quarter'] = report['quarter']
+
+            # If existing record missing report_type but we have it
+            if not existing_doc.get('report_type') and report.get('report_type'):
+                should_update = True
+                update_data['report_type'] = report['report_type']
+
+            if should_update:
+                print(f"   ✏️  Updating existing record with better metadata from Gemini")
+                update_data['updated_at'] = datetime.now().isoformat()
+                updated = supabase.table("finance_companies_documents")\
+                    .update(update_data)\
+                    .eq("id", existing_doc['id'])\
+                    .execute()
+                return updated.data[0] if updated.data else existing_doc
+            else:
+                print(f"   ℹ️  Existing record already has complete metadata")
+                return existing_doc
+
+        # Insert new document
+        doc_data = {
+            "finance_company_id": company_id,
+            "finance_company_symbol": company_symbol,
+            "pdf_url": pdf_url,
+            "fiscal_year": report.get('fiscal_year', ''),
+            "report_type": report.get('report_type', ''),
+            "quarter": report.get('quarter'),
+            "scraped_at": datetime.now().isoformat(),
+            "method": report.get('source', 'static'),
+            "added_by": report.get('added_by')
+        }
+
+        result = supabase.table("finance_companies_documents").insert(doc_data).execute()
+        print(f"   ✅ Document inserted to database")
+        return result.data[0] if result.data else doc_data
+
+    except Exception as e:
+        print(f"   ❌ Error inserting finance company document: {e}")
+        raise
 
 
 def get_scraping_urls(bank: Dict, report_type: str) -> List[tuple]:
@@ -1317,6 +1560,350 @@ def fetch_from_dev_bank_api(bank_symbol: str, fiscal_year: str, report_type: str
 
 
 # ============================================================================
+# FINANCE COMPANY API HANDLERS
+# ============================================================================
+
+def fetch_from_pfl_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch from Pokhara Finance (PFL) API"""
+    config = FINANCE_COMPANY_DYNAMIC_API["PFL"]
+    api_url = config['annual_api'] if report_type == 'annual' else config['quarterly_api']
+
+    try:
+        print(f"  Fetching from PFL API: {api_url}")
+        response = requests.get(api_url, timeout=15)
+        if response.status_code != 200: return None
+
+        data = response.json()
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        # Structure: {"FY": {"en": [{"title": "FY 2079-80", "child": [...]}]}}
+        fy_list = data.get("FY", {}).get("en", [])
+
+        for group in fy_list:
+            # Check if group title matches FY (e.g. "FY 2079-80")
+            group_title = group.get("title", "").replace("-", "/")
+            if target_fy not in normalize_fiscal_year_format(group_title):
+                continue
+
+            # Iterate children
+            for doc in group.get("child", []):
+                doc_title = doc.get("title", "")
+
+                if report_type == 'quarterly' and quarter:
+                    doc_quarter = extract_quarter_from_title(doc_title)
+                    if doc_quarter != quarter: continue
+
+                return {
+                    "fiscal_year": target_fy,
+                    "report_type": report_type,
+                    "quarter": quarter,
+                    "pdf_url": doc.get("DocPath"),
+                    "document_name": doc_title,
+                    "source": "pfl_api"
+                }
+        return None
+    except Exception as e:
+        print(f"  PFL API Error: {e}")
+        return None
+
+
+def fetch_from_gmfil_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch from Guheswori Finance (GMFIL) API"""
+    config = FINANCE_COMPANY_DYNAMIC_API["GMFIL"]
+    api_url = config['annual_api'] if report_type == 'annual' else config['quarterly_api']
+
+    try:
+        print(f"  Fetching from GMFIL API: {api_url}")
+        response = requests.get(api_url, timeout=15)
+        if response.status_code != 200: return None
+
+        data = response.json()
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        items = data.get("items", {}).get("en", [])
+
+        for doc in items:
+            title = doc.get("title", "")
+            # FIX: Replace hyphen with slash for extraction (e.g., 2080-81 -> 2080/81)
+            clean_title = title.replace("-", "/")
+
+            doc_fy = extract_fiscal_year_from_title(clean_title)
+            if not doc_fy or normalize_fiscal_year_format(doc_fy) != target_fy:
+                continue
+
+            if report_type == 'quarterly' and quarter:
+                doc_quarter = extract_quarter_from_title(title)
+                if doc_quarter != quarter: continue
+
+            return {
+                "fiscal_year": target_fy,
+                "report_type": report_type,
+                "quarter": quarter,
+                "pdf_url": doc.get("DocPath"),
+                "document_name": title,
+                "source": "gmfil_api"
+            }
+        return None
+    except Exception as e:
+        print(f"  GMFIL API Error: {e}")
+        return None
+
+
+def fetch_from_icfc_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch from ICFC Finance API"""
+    config = FINANCE_COMPANY_DYNAMIC_API["ICFC"]
+    api_url = config['annual_api'] if report_type == 'annual' else config['quarterly_api']
+
+    try:
+        print(f"  Fetching from ICFC API: {api_url}")
+        response = requests.get(api_url, timeout=15)
+        if response.status_code != 200: return None
+
+        data = response.json()
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        items = data.get("items", {}).get("en", [])
+
+        for doc in items:
+            title = doc.get("title", "")
+            # FIX: Replace hyphen with slash for extraction (e.g., 2080-81 -> 2080/81)
+            clean_title = title.replace("-", "/")
+
+            doc_fy = extract_fiscal_year_from_title(clean_title)
+
+            if not doc_fy or normalize_fiscal_year_format(doc_fy) != target_fy:
+                continue
+
+            if report_type == 'quarterly' and quarter:
+                doc_quarter = extract_quarter_from_title(title)
+                if doc_quarter != quarter: continue
+
+            return {
+                "fiscal_year": target_fy,
+                "report_type": report_type,
+                "quarter": quarter,
+                "pdf_url": doc.get("DocPath"),
+                "document_name": title,
+                "source": "icfc_api"
+            }
+        return None
+    except Exception as e:
+        print(f"  ICFC API Error: {e}")
+        return None
+
+
+def fetch_from_mfil_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch from Manjushree Finance (MFIL) API"""
+    config = FINANCE_COMPANY_DYNAMIC_API["MFIL"]
+
+    try:
+        print(f"  Fetching from MFIL API: {config['api_base']}")
+        response = requests.get(config['api_base'], timeout=15)
+        if response.status_code != 200: return None
+
+        data = response.json()
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+        target_cat = config['annual_category'] if report_type == 'annual' else config['quarterly_category']
+
+        # Manjushree structure: documentCategory -> subCategories -> documents
+        categories = data.get("data", {}).get("documentCategory", [])
+
+        for cat in categories:
+            if target_cat.lower() not in cat.get("name", "").lower():
+                continue
+
+            # Iterate subcategories (often organized by FY)
+            all_docs = []
+            for sub in cat.get("subCategories", []):
+                all_docs.extend(sub.get("documents", []))
+
+            for doc in all_docs:
+                # Check FY
+                doc_fy = normalize_fiscal_year_format(doc.get("fiscal_year", ""))
+                if doc_fy != target_fy: continue
+
+                # Check Quarter
+                if report_type == 'quarterly' and quarter:
+                    doc_quarter = None
+                    # Try extraction from quarter object
+                    q_obj = doc.get("quater")
+                    if q_obj and isinstance(q_obj, dict):
+                        doc_quarter = extract_quarter_from_title(q_obj.get("systemName", ""))
+
+                    if not doc_quarter:
+                        doc_quarter = extract_quarter_from_title(doc.get("name", ""))
+
+                    if doc_quarter != quarter: continue
+
+                # Build URL
+                file_path = doc.get("file", "")
+                full_url = f"{config['file_base']}{file_path.lstrip('/')}"
+
+                return {
+                    "fiscal_year": target_fy,
+                    "report_type": report_type,
+                    "quarter": quarter,
+                    "pdf_url": full_url,
+                    "document_name": doc.get("name", ""),
+                    "source": "mfil_api"
+                }
+        return None
+    except Exception as e:
+        print(f"  MFIL API Error: {e}")
+        return None
+
+
+def fetch_from_profl_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch from Progressive Finance (PROFL) API"""
+    config = FINANCE_COMPANY_DYNAMIC_API["PROFL"]
+
+    try:
+        print(f"  Fetching from PROFL API: {config['api_url']}")
+
+        headers = {
+            "x-api-token": config['api_token'],
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+
+        response = requests.get(config['api_url'], headers=headers, timeout=15)
+        if response.status_code != 200:
+            print(f"  PROFL API returned status {response.status_code}")
+            return None
+
+        documents = response.json()
+        if not isinstance(documents, list):
+            print(f"  Unexpected PROFL API response format")
+            return None
+
+        target_fy = normalize_fiscal_year_format(fiscal_year)
+
+        # Filter by report type
+        if report_type == 'annual':
+            target_file_type = "Annual Report"
+        elif report_type == 'quarterly':
+            target_file_type = "Quarterly Report"
+        else:
+            return None
+
+        print(f"  Looking for: {target_file_type}, FY: {target_fy}, Quarter: {quarter}")
+
+        candidates = []
+        for doc in documents:
+            file_type = doc.get("file_type", "")
+
+            # Check report type
+            if target_file_type not in file_type:
+                continue
+
+            # Extract fiscal year from various fields
+            fiscal_year_field = doc.get("fiscal_year", "")
+
+            if not fiscal_year_field:
+                continue
+
+            # Parse fiscal years from the field
+            # Handle formats like:
+            # - "F.Y. 079/80 & 080/81" (combined two years)
+            # - "F.Y. 078/79"
+            # - "F.Y 076/77"
+            # - "Year 2082/83"
+            # - "2078/09/08" (date format - skip)
+
+            # Find all fiscal year patterns
+            fy_matches = re.findall(r'(\d{3,4})/(\d{2,4})', fiscal_year_field)
+
+            if not fy_matches:
+                continue
+
+            # Check if any of the found fiscal years match our target
+            doc_matches = False
+            for year1, year2 in fy_matches:
+                # Normalize to 4 digits
+                if len(year1) == 3:
+                    year1 = '2' + year1  # Assume 20XX for 3-digit years (e.g., 079 -> 2079)
+                if len(year2) == 2:
+                    year2 = year1[:2] + year2
+                elif len(year2) == 3:
+                    year2 = '2' + year2  # Assume 20XX for 3-digit years
+
+                # Create normalized fiscal year
+                doc_fy = f"{year1}/{year2[-2:]}"
+
+                if doc_fy == target_fy:
+                    doc_matches = True
+                    break
+
+            if not doc_matches:
+                continue
+
+            # For quarterly reports, check quarter
+            if report_type == 'quarterly' and quarter:
+                title = doc.get("file_title", "").lower()
+                doc_quarter = None
+
+                if 'first' in title or '1st' in title:
+                    doc_quarter = 'Q1'
+                elif 'second' in title or '2nd' in title:
+                    doc_quarter = 'Q2'
+                elif 'third' in title or '3rd' in title:
+                    doc_quarter = 'Q3'
+                elif 'fourth' in title or '4th' in title:
+                    doc_quarter = 'Q4'
+
+                if doc_quarter != quarter:
+                    continue
+
+            candidates.append(doc)
+
+        if not candidates:
+            print(f"  No matching document found")
+            return None
+
+        # Select best candidate (first one for now, or prioritize most recent)
+        selected = candidates[0]
+
+        # Build full URL
+        file_path = selected.get("file_path_url", "")
+        if not file_path:
+            print(f"  No file_path_url in document")
+            return None
+
+        print(f"  ✅ Found matching document: {selected.get('file_title', '')}")
+
+        return {
+            "fiscal_year": target_fy,
+            "report_type": report_type,
+            "quarter": quarter,
+            "pdf_url": file_path,
+            "document_name": selected.get("file_title", ""),
+            "source": "profl_api"
+        }
+
+    except Exception as e:
+        print(f"  PROFL API Error: {e}")
+        return None
+
+
+
+def fetch_from_finance_company_api(company_symbol: str, fiscal_year: str, report_type: str,
+                                   quarter: Optional[str] = None) -> Optional[Dict]:
+    """Dispatcher for Finance Company Dynamic APIs"""
+    company_symbol = company_symbol.upper()
+
+    if company_symbol == "PFL":
+        return fetch_from_pfl_api(fiscal_year, report_type, quarter)
+    elif company_symbol == "GMFIL":
+        return fetch_from_gmfil_api(fiscal_year, report_type, quarter)
+    elif company_symbol == "ICFC":
+        return fetch_from_icfc_api(fiscal_year, report_type, quarter)
+    elif company_symbol == "MFIL":
+        return fetch_from_mfil_api(fiscal_year, report_type, quarter)
+    elif company_symbol == "PROFL":
+        return fetch_from_profl_api(fiscal_year, report_type, quarter)
+
+    return None
+# ============================================================================
 # COMMERCIAL BANK DYNAMIC API DISPATCHER
 # ============================================================================
 
@@ -1982,6 +2569,155 @@ def get_dev_bank_quarterly_report(bank_symbol: str, fiscal_year: str, quarter: s
         "pdf_url": report.get('pdf_url') or report.get('file_url')
     }
 
+
+# ============================================================================
+# UPDATED FINANCE COMPANY ENDPOINT HANDLERS
+# ============================================================================
+
+@app.get("/finance-company/annual-report")
+def get_finance_company_annual_report(company_symbol: str, fiscal_year: str):
+    company_symbol = company_symbol.upper()
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"📊 FINANCE COMPANY ANNUAL: {company_symbol} {nepali_fy}")
+
+    company = get_finance_company_info(company_symbol)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    # 1. Database Check
+    existing = check_finance_company_document_exists(company['id'], nepali_fy, 'annual') or \
+               check_finance_company_document_exists(company['id'], english_fy, 'annual')
+
+    if existing:
+        return {"status": "found", "source": "database", "pdf_url": existing['pdf_url']}
+
+    # 2. Dynamic API Check
+    if has_finance_company_dynamic_api(company_symbol):
+        print("  🔌 Using Dynamic API")
+        api_doc = fetch_from_finance_company_api(company_symbol, nepali_fy, 'annual')
+        if api_doc:
+            inserted = insert_finance_company_document_to_db(company['id'], company_symbol, api_doc)
+            return {"status": "found", "source": "dynamic_api", "pdf_url": inserted['pdf_url']}
+
+    # 3. Firecrawl Scraping (Paginated & Static)
+    print("  🔍 Starting Scraping...")
+
+    # Configure URLs based on type
+    urls = []
+
+    # Check Pagination Config
+    if has_finance_company_pagination(company_symbol):
+        config = FINANCE_COMPANY_PAGINATED[company_symbol]
+        # Generate URLs for first 2 pages to be safe
+        base_url = config.get('annual_url', '')
+        if "{page}" in base_url:
+            urls = [base_url.format(page=i) for i in range(1, 3)]
+    else:
+        # Static URLs
+        static_config = FINANCE_COMPANY_STATIC.get(company_symbol, {})
+        if static_config.get('annual_url'): urls.append(static_config['annual_url'])
+        if static_config.get('report_page'): urls.append(static_config['report_page'])
+        if company.get('annual_report_url'): urls.append(company['annual_report_url'])
+
+    # Special Prompt for SIFC (Shree) ordinal matching
+    ordinal_instruction = ""
+    if company_symbol == "SIFC":
+        ordinal_instruction = f"""
+        - IMPORTANT: This site uses ordinal titles like "30th Annual Report".
+        - 30th = 2080/81
+        - 29th = 2079/80
+        - 28th = 2078/79
+        - Calculate the target ordinal for {nepali_fy} and match that title.
+        """
+
+    prompt = f"""Find the AUDITED ANNUAL REPORT for fiscal year {nepali_fy} or {english_fy}.
+    {ordinal_instruction}
+    Return JSON: {{ "found": true, "report": {{ "fiscal_year": "{nepali_fy}", "report_type": "annual", "file_url": "url" }} }}"""
+
+    for url in urls:
+        print(f"  Scanning: {url}")
+        try:
+            result = firecrawl.scrape(url, formats=["markdown", {"type": "json", "prompt": prompt}])
+            if result.json and result.json.get('found'):
+                report = result.json.get('report')
+                if report and report.get('file_url'):
+                    report['source'] = 'firecrawl'
+                    inserted = insert_finance_company_document_to_db(company['id'], company_symbol, report)
+                    return {"status": "found", "source": "scraped", "pdf_url": inserted['pdf_url']}
+        except Exception as e:
+            print(f"  Error scraping {url}: {e}")
+
+    raise HTTPException(status_code=404, detail="Report not found")
+
+
+@app.get("/finance-company/quarterly-report")
+def get_finance_company_quarterly_report(company_symbol: str, fiscal_year: str, quarter: str):
+    company_symbol = company_symbol.upper()
+    quarter = quarter.upper()
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"📊 FINANCE COMPANY QUARTERLY: {company_symbol} {nepali_fy} {quarter}")
+
+    company = get_finance_company_info(company_symbol)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    # 1. Database Check
+    existing = check_finance_company_document_exists(company['id'], nepali_fy, 'quarterly', quarter) or \
+               check_finance_company_document_exists(company['id'], english_fy, 'quarterly', quarter)
+
+    if existing:
+        return {"status": "found", "source": "database", "pdf_url": existing['pdf_url']}
+
+    # 2. Dynamic API Check
+    if has_finance_company_dynamic_api(company_symbol):
+        print("  🔌 Using Dynamic API")
+        api_doc = fetch_from_finance_company_api(company_symbol, nepali_fy, 'quarterly', quarter)
+        if api_doc:
+            inserted = insert_finance_company_document_to_db(company['id'], company_symbol, api_doc)
+            return {"status": "found", "source": "dynamic_api", "pdf_url": inserted['pdf_url']}
+
+    # 3. Firecrawl Scraping
+    print("  🔍 Starting Scraping...")
+
+    urls = []
+    if has_finance_company_pagination(company_symbol):
+        config = FINANCE_COMPANY_PAGINATED[company_symbol]
+        base_url = config.get('quarterly_url', '')
+        if "{page}" in base_url:
+            urls = [base_url.format(page=i) for i in range(1, 3)]
+    else:
+        static_config = FINANCE_COMPANY_STATIC.get(company_symbol, {})
+        if static_config.get('quarterly_url'): urls.append(static_config['quarterly_url'])
+        if static_config.get('report_page'): urls.append(static_config['report_page'])
+        if company.get('quarter_report_url'): urls.append(company['quarter_report_url'])
+
+    # Special Handling for Nepali Months (Goodwill)
+    month_hint = ""
+    if company_symbol == "GFCL":
+        month_map = {'Q1': 'Ashoj/Ashwin', 'Q2': 'Poush', 'Q3': 'Chaitra', 'Q4': 'Ashadh'}
+        month_hint = f"Look for month: {month_map.get(quarter, '')}"
+
+    prompt = f"""Find the {quarter} REPORT for {nepali_fy}.
+    {month_hint}
+    Keywords: {quarter}, Quarterly, Interim, Unaudited.
+    Return JSON: {{ "found": true, "report": {{ "fiscal_year": "{nepali_fy}", "report_type": "quarterly", "quarter": "{quarter}", "file_url": "url" }} }}"""
+
+    for url in urls:
+        print(f"  Scanning: {url}")
+        try:
+            result = firecrawl.scrape(url, formats=["markdown", {"type": "json", "prompt": prompt}])
+            if result.json and result.json.get('found'):
+                report = result.json.get('report')
+                if report and report.get('file_url'):
+                    report['source'] = 'firecrawl'
+                    inserted = insert_finance_company_document_to_db(company['id'], company_symbol, report)
+                    return {"status": "found", "source": "scraped", "pdf_url": inserted['pdf_url']}
+        except Exception as e:
+            print(f"  Error scraping {url}: {e}")
+
+    raise HTTPException(status_code=404, detail="Report not found")
 
 if __name__ == "__main__":
     import uvicorn

@@ -37,7 +37,7 @@ firecrawl = Firecrawl(api_key=FIRECRAWL_API_KEY)
 
 # Configure Gemini AI
 genai.configure(api_key=GEMINI_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+gemini_model = genai.GenerativeModel('gemini-2.5-flash')
 
 app = FastAPI(
     title="Financial Documents API",
@@ -3968,3 +3968,4 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8002)
+

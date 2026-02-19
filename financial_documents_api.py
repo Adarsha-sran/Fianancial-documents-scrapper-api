@@ -478,6 +478,205 @@ def check_dev_bank_document_exists(bank_id: int, fiscal_year: str, report_type: 
 
 
 # ============================================================================
+# MICROFINANCE COMPANY DYNAMIC API CONFIGURATION
+# ============================================================================
+
+MICROFINANCE_DYNAMIC_API = {
+    "PROFL": {
+        "name": "Progressive Finance (Microfinance)",
+        "api_url": "https://api.pfltd.com.np/api/investor-documents",
+        "api_token": "frontend_b638742e437e15b46899bfd970d4a0333c73e8cde9240f95203ecc09e6b9e994",
+        "file_base": "http://api.pfltd.com.np/storage/",
+        "method": "profl_api"
+    },
+    "VLBS": {
+        "name": "Vijaya Laghubitta",
+        "token_url": "https://vlbsapi.graycode.com.np/connect/token",
+        "api_url": "https://vlbsapi.graycode.com.np/api/v1/downloads/list/SettingKey",
+        "client_id": "client",
+        "client_secret": "secret",
+        "company_id": "1",
+        "annual_key": "reportannual",
+        "quarterly_key": "reportqtr",
+        "method": "vijaya_jwt_api",
+        "token_expires": 3600
+    },
+    "NICLBSL": {
+        "name": "NIC Asia Laghubitta",
+        "api_base": "https://cms.nicasialaghubitta.com/framework/api/frontend/document/list",
+        "file_base": "https://cms.nicasialaghubitta.com/framework/",
+        "method": "nicbl_api",
+        "annual_category": "Annual Report",
+        "quarterly_category": "Quarterly Report"
+    },
+    "GILB": {
+        "name": "Global IME Laghubitta",
+        "annual_page": "https://gilb.com.np/annual-report/",
+        "quarterly_page": "https://gilb.com.np/quaterly-report/",
+        "method": "ninja_tables",
+        "special_mapping": {
+            "8th": "2076/77",
+            "9th": "2077/78",
+            "10th": "2078/79"
+        }
+    }
+}
+
+# Microfinance with CSRF Form
+MICROFINANCE_CSRF_FORM = {
+    "DDBL": {
+        "name": "Deprosc Laghubitta",
+        "annual_url": "https://www.deproscbank.com.np/en/main/ReportsPublic/2/",
+        "quarterly_url": "https://www.deproscbank.com.np/en/main/ReportsPublic/3/",
+        "csrf_field": "csrf_ddbank",
+        "year_field": "year",
+        "method": "csrf_form"
+    }
+}
+
+# Microfinance with Pagination
+MICROFINANCE_PAGINATED = {
+    "SWBBL": {
+        "name": "Swabalamban Laghubitta",
+        "quarterly_url": "https://swabalambanlaghubitta.com/quarterly-report/?page={page}",
+        "method": "paginated",
+        "max_pages": 5
+    },
+    "SLBBL": {
+        "name": "Swarojgar Laghubitta",
+        "quarterly_url": "https://swarojgarbikas.com/quarterly-reports/?page={page}",
+        "method": "paginated",
+        "max_pages": 5
+    },
+    "LLBL": {
+        "name": "Laxmi Laghubitta",
+        "annual_url": "https://laxmilaghubitta.com/reports/annual/?page={page}",
+        "quarterly_url": "https://laxmilaghubitta.com/reports/quarterly/?page={page}",
+        "method": "paginated",
+        "max_pages": 5
+    },
+    "RMDC": {
+        "name": "RSDC Microfinance",
+        "annual_url": "https://rsdcmf.com/annual-reports/?page={page}",
+        "quarterly_url": "https://rsdcmf.com/quarterly-reports/?page={page}",
+        "method": "paginated",
+        "max_pages": 5
+    },
+    "NMBMF": {
+        "name": "NMB Microfinance",
+        "quarterly_url": "https://nmbmicrofinance.com/quarterly-report/?page={page}",
+        "method": "paginated",
+        "max_pages": 10,
+        "reverse_order": True  # Latest in last page
+    },
+    "MSLB": {
+        "name": "Mahuli Laghubitta",
+        "annual_url": "https://mslbsl.com.np/reports/annual/?page={page}",
+        "quarterly_url": "https://mslbsl.com.np/reports/quarterly/?page={page}",
+        "method": "paginated",
+        "max_pages": 5
+    },
+    "SMFDB": {
+        "name": "Support Microfinance",
+        "quarterly_url": "https://supportmicrofinance.com.np/quarterly-reports/?page={page}",
+        "method": "paginated",
+        "max_pages": 5
+    },
+    "FMDBL": {
+        "name": "First Microfinance",
+        "annual_url": "https://firstmicrofinance.com/reports/annual/?page={page}",
+        "quarterly_url": "https://firstmicrofinance.com/reports/quarterly/?page={page}",
+        "method": "paginated",
+        "max_pages": 10,
+        "reverse_order": True  # Latest in last page
+    }
+}
+
+# Microfinance - Static Good (Clean implementations)
+MICROFINANCE_STATIC_GOOD = {
+    "NUBL": {"name": "Nirdhan Utthan", "annual_url": "https://nirdhan.com.np/reports/annual", "quarterly_url": "https://nirdhan.com.np/reports/quarterly"},
+    "CBBL": {"name": "Chhimek Laghubitta", "annual_url": "https://chhimekbikas.com.np/reports/annual", "quarterly_url": "https://chhimekbikas.com.np/reports/quarterly"},
+    "FOWAD": {"name": "Forward Microfinance", "annual_url": "https://forwardmicrofinance.com/annual-reports", "quarterly_url": "https://forwardmicrofinance.com/quarterly-reports"},
+    "MERO": {"name": "Mero Microfinance", "annual_url": "https://meromicrofinance.com.np/reports/annual", "quarterly_url": "https://meromicrofinance.com.np/reports/quarterly"},
+    "GBLBS": {"name": "Grameen Bikas", "annual_url": "https://gblbs.com.np/reports/annual", "quarterly_url": "https://gblbs.com.np/reports/quarterly"},
+    "SMATA": {"name": "Samata Microfinance", "annual_url": "https://samatamicrofinance.com/annual-reports", "quarterly_url": "https://samatamicrofinance.com/quarterly-reports"},
+    "SAMUBL": {"name": "Samudayik Laghubitta", "annual_url": "https://slbsl.com.np/reports/annual", "quarterly_url": "https://slbsl.com.np/reports/quarterly"},
+    "NLBBL": {"name": "Nadep Laghubitta", "annual_url": "https://nadeplaghubitta.com.np/reports", "quarterly_url": "https://nadeplaghubitta.com.np/quarterly"},
+    "GMFBS": {"name": "Ganapati Laghubitta", "report_page": "https://ganapatilaghubitta.com/reports"},  # Reports on Google Drive
+    "ALBSL": {"name": "Asha Laghubitta", "annual_url": "https://aashalaghubitta.com/reports/annual", "quarterly_url": "https://aashalaghubitta.com/reports/quarterly"},
+    "ILBS": {"name": "Infinity Laghubitta", "annual_url": "https://infinitylaghubitta.com.np/reports/annual", "quarterly_url": "https://infinitylaghubitta.com.np/reports/quarterly"},
+    "SMFBS": {"name": "Swabhimaan Laghubitta", "annual_url": "https://swabhimaanlaghubitta.com/reports", "quarterly_url": "https://swabhimaanlaghubitta.com/quarterly"},
+    "MLBSL": {"name": "Mahila Laghubitta", "annual_url": "https://mahilalaghubitta.com.np/reports/annual", "quarterly_url": "https://mahilalaghubitta.com.np/reports/quarterly"},
+    "SWBSL": {"name": "Swastik Laghubitta", "annual_url": "https://swastiklaghubitta.com/annual-reports", "quarterly_url": "https://swastiklaghubitta.com/quarterly-reports"},
+    "JBLB": {"name": "Jeevan Bikas Laghubitta", "annual_url": "https://jeevanbikaslaghubitta.com.np/reports", "quarterly_url": "https://jeevanbikaslaghubitta.com.np/quarterly"},
+    "SHLB": {"name": "Shrijanshil Laghubitta", "annual_url": "https://shrijanshil.org/reports/annual", "quarterly_url": "https://shrijanshil.org/reports/quarterly"},
+    "NESDO": {"name": "Nesdo Sambridhha", "annual_url": "https://nesdo.org.np/reports", "quarterly_url": "https://nesdo.org.np/quarterly"},
+    "UNLB": {"name": "Unique Nepal Laghubitta", "annual_url": "https://uniquenepal.com/reports/annual", "quarterly_url": "https://uniquenepal.com/reports/quarterly"},
+    "DLBS": {"name": "Dhaulagiri Laghubitta", "annual_url": "https://dhaulagirilaghubitta.com/reports", "quarterly_url": "https://dhaulagirilaghubitta.com/quarterly"},
+    "ANLB": {"name": "Aatmanirbhar Laghubitta", "annual_url": "https://aatamanirbharlaghubitta.com.np/reports", "quarterly_url": "https://aatamanirbharlaghubitta.com.np/quarterly"},
+    "CYCL": {"name": "CYC Nepal Laghubitta", "annual_url": "https://cycnepal.org.np/reports", "quarterly_url": "https://cycnepal.org.np/quarterly"},
+    "AVYAN": {"name": "Aviyan Laghubitta", "annual_url": "https://www.aviyanlaghubitta.com/reports/annual", "quarterly_url": "https://www.aviyanlaghubitta.com/reports/quarterly"},
+    "ACLBSL": {"name": "Aarambha Chautari Laghubitta", "annual_url": "https://aarambhachautari.com.np/reports", "quarterly_url": "https://aarambhachautari.com.np/quarterly"},
+    "WNLB": {"name": "Wean Nepal Laghubitta", "annual_url": "https://weannepal.org/reports", "quarterly_url": "https://weannepal.org/quarterly"},
+    "SWMF": {"name": "Suryodaya Womi Laghubitta", "annual_url": "https://suryodayawomi.com.np/reports", "quarterly_url": "https://suryodayawomi.com.np/quarterly"},
+    "NMFBS": {"name": "National Laghubitta", "annual_url": "https://nationalmicrofinance.com.np/reports/annual", "quarterly_url": "https://nationalmicrofinance.com.np/reports/quarterly"},
+    "MBLBL": {"name": "Matribhumi Laghubitta", "annual_url": "https://matribhumimf.com.np/reports/annual", "quarterly_url": "https://matribhumimf.com.np/reports/quarterly"},
+    "NMLBBL": {"name": "Nerude Mirmire Laghubitta", "annual_url": "https://nerudemirmire.com.np/reports", "note": "Only 1 annual report"}
+}
+
+# Microfinance - Special Handling
+MICROFINANCE_SPECIAL = {
+    "KLBSL": {
+        "name": "Kalika Laghubitta",
+        "annual_url": "https://kalikalaghubitta.com.np/reports/annual",
+        "quarterly_url": "https://kalikalaghubitta.com.np/reports/quarterly",
+        "note": "No fiscal year in annual title - extract from context"
+    },
+    "JSLBB": {
+        "name": "Janautthan Samudayic",
+        "annual_url": "https://janauttanlaghubitta.com.np/reports",
+        "quarterly_url": "https://janauttanlaghubitta.com.np/quarterly"
+    },
+    "MLBBL": {
+        "name": "Mithila Laghubitta",
+        "annual_url": "https://mithilalaghubitta.com/reports",
+        "quarterly_url": "https://mithilalaghubitta.com/quarterly"
+    },
+    "HLBSL": {
+        "name": "Himalayan Laghubitta",
+        "base_url": "https://himalayanlaghubitta.com",
+        "note": "Django full-stack"
+    },
+    "GLBSL": {
+        "name": "Gurans Laghubitta",
+        "annual_url": "https://guranslaghubitta.com/reports",
+        "quarterly_url": "https://guranslaghubitta.com/quarterly",
+        "note": "1st report = 2072/73, use numbering",
+        "first_report_year": "2072/73"
+    },
+    "MLBS": {
+        "name": "Manushi Laghubitta",
+        "annual_url": "https://manushilaghubitta.com/reports",
+        "quarterly_url": "https://manushilaghubitta.com/quarterly",
+        "note": "Unclear titles - needs cleaning"
+    },
+    "ULBSL": {
+        "name": "Upakar Laghubitta",
+        "annual_url": "https://upakarlaghubitta.com/reports",
+        "quarterly_url": "https://upakarlaghubitta.com/quarterly",
+        "note": "Single year mentioned - parse from content"
+    }
+}
+
+# Microfinance - Skip
+MICROFINANCE_SKIP = {
+    "SKBSL": {"name": "Sana Kisan", "reason": "Merged with RMDC"},
+    "USLB": {"name": "Unnati Sahakarya", "reason": "Report page broken"},
+    "SMPDA": {"name": "Sampada Laghubitta", "reason": "Only 1 annual report"}
+}
+
+
+# ============================================================================
 # FINANCE COMPANY HELPER FUNCTIONS
 # ============================================================================
 
@@ -608,6 +807,588 @@ def insert_finance_company_document_to_db(company_id: int, company_symbol: str, 
         print(f"   ❌ Error inserting finance company document: {e}")
         raise
 
+
+# ============================================================================
+# MICROFINANCE COMPANY HELPER FUNCTIONS
+# ============================================================================
+
+def get_microfinance_company_info(company_symbol: str) -> Optional[Dict]:
+    """Fetch microfinance company information from database"""
+    try:
+        result = supabase.table("microfinance_companies").select("*").eq("symbol", company_symbol.upper()).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
+    except Exception as e:
+        print(f"Error fetching microfinance company info: {e}")
+        return None
+
+
+def check_microfinance_company_document_exists(company_id: int, fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Check if document already exists in microfinance_companies_documents table"""
+    try:
+        query = supabase.table("microfinance_companies_documents").select("*").eq("microfinance_id", company_id).eq("fiscal_year",
+                                                                                            fiscal_year).eq(
+            "report_type", report_type)
+        if quarter:
+            query = query.eq("quarter", quarter)
+        else:
+            query = query.is_("quarter", "null")
+        result = query.execute()
+
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+
+        # Try alternate fiscal year format
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+        alt_fy = english_fy if fiscal_year == nepali_fy else nepali_fy
+
+        if alt_fy != fiscal_year:
+            query_alt = supabase.table("microfinance_companies_documents").select("*").eq("microfinance_id", company_id).eq("fiscal_year",
+                                                                                                    alt_fy).eq(
+                "report_type", report_type)
+            if quarter:
+                query_alt = query_alt.eq("quarter", quarter)
+            else:
+                query_alt = query_alt.is_("quarter", "null")
+            result_alt = query_alt.execute()
+            if result_alt.data and len(result_alt.data) > 0:
+                return result_alt.data[0]
+        return None
+    except Exception as e:
+        print(f"Error checking microfinance company document: {e}")
+        return None
+
+
+def insert_microfinance_company_document_to_db(company_id: int, company_symbol: str, report: Dict) -> Dict:
+    """
+    Insert microfinance company document to database with duplicate checking
+    If PDF URL already exists, update metadata if gemini extraction provides better data
+    """
+    try:
+        pdf_url = report.get('pdf_url') or report.get('file_url')
+        if not pdf_url:
+            raise ValueError("No PDF URL found in report data")
+
+        # Check if PDF URL already exists
+        existing = supabase.table("microfinance_companies_documents").select("*").eq("pdf_url", pdf_url).execute()
+
+        if existing.data and len(existing.data) > 0:
+            print(f"   📄 PDF URL already exists in database")
+            existing_doc = existing.data[0]
+
+            # Check if we have better metadata from Gemini
+            should_update = False
+            update_data = {}
+
+            # If existing record missing fiscal year but we have it
+            if not existing_doc.get('fiscal_year') and report.get('fiscal_year'):
+                should_update = True
+                update_data['fiscal_year'] = report['fiscal_year']
+
+            # If existing record missing quarter but we have it
+            if not existing_doc.get('quarter') and report.get('quarter'):
+                should_update = True
+                update_data['quarter'] = report['quarter']
+
+            # If existing record missing report_type but we have it
+            if not existing_doc.get('report_type') and report.get('report_type'):
+                should_update = True
+                update_data['report_type'] = report['report_type']
+
+            if should_update:
+                print(f"   ✏️  Updating existing record with better metadata from Gemini")
+                update_data['updated_at'] = datetime.now().isoformat()
+                updated = supabase.table("microfinance_companies_documents")\
+                    .update(update_data)\
+                    .eq("id", existing_doc['id'])\
+                    .execute()
+                return updated.data[0] if updated.data else existing_doc
+            else:
+                print(f"   ℹ️  Existing record already has complete metadata")
+                return existing_doc
+
+        # Insert new document
+        doc_data = {
+            "microfinance_id": company_id,
+            "microfinance_symbol": company_symbol,
+            "pdf_url": pdf_url,
+            "fiscal_year": report.get('fiscal_year', ''),
+            "report_type": report.get('report_type', ''),
+            "quarter": report.get('quarter'),
+            "scraped_at": datetime.now().isoformat(),
+            "method": report.get('source', 'static'),
+            "added_by": report.get('added_by')
+        }
+
+        result = supabase.table("microfinance_companies_documents").insert(doc_data).execute()
+        print(f"   ✅ Document inserted to database")
+        return result.data[0] if result.data else doc_data
+
+    except Exception as e:
+        print(f"   ❌ Error inserting microfinance company document: {e}")
+        raise
+
+
+# ============================================================================
+# MICROFINANCE DYNAMIC API HANDLERS
+# ============================================================================
+
+# JWT Token Manager for Vijaya Laghubitta
+class VijayaTokenManager:
+    """Manage JWT tokens for Vijaya Laghubitta API with auto-refresh"""
+    def __init__(self):
+        self.token = None
+        self.expires_at = 0
+
+    def get_token(self):
+        """Get valid token, refresh if expired"""
+        import time
+
+        if self.token and time.time() < self.expires_at:
+            return self.token
+
+        # Fetch new token
+        config = MICROFINANCE_DYNAMIC_API["VLBS"]
+        TOKEN_URL = config["token_url"]
+
+        response = requests.post(TOKEN_URL, data={
+            "client_id": config["client_id"],
+            "client_secret": config["client_secret"],
+            "grant_type": "client_credentials"
+        }, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=10)
+
+        data = response.json()
+        self.token = data["access_token"]
+        self.expires_at = time.time() + 3500  # 100s buffer before 3600s expiry
+
+        return self.token
+
+# Global token manager instance
+vijaya_token_manager = VijayaTokenManager()
+
+
+def fetch_from_vijaya_jwt_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch reports from Vijaya Laghubitta JWT API"""
+    try:
+        config = MICROFINANCE_DYNAMIC_API["VLBS"]
+        token = vijaya_token_manager.get_token()
+
+        # Determine report key
+        report_key = config["annual_key"] if report_type == "annual" else config["quarterly_key"]
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "companyid": config["company_id"],
+            "Accept": "application/json"
+        }
+
+        params = {
+            "pageNo": 1,
+            "pageSize": 99,
+            "key": report_key,
+            "language": "en"
+        }
+
+        response = requests.get(config["api_url"], headers=headers, params=params, timeout=15)
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+
+        # Extract reports from response
+        if not data or 'data' not in data:
+            return None
+
+        reports = data.get('data', [])
+
+        # Normalize fiscal year
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+        # Find matching report
+        for report in reports:
+            file_year = report.get('fiscal_year', '')
+
+            # Check fiscal year match
+            if fiscal_year in file_year or nepali_fy in file_year or english_fy in file_year:
+                # For quarterly, check quarter
+                if report_type == "quarterly" and quarter:
+                    file_title = report.get('file_title', '').lower()
+                    quarter_match = False
+
+                    if quarter == 'Q1' and any(k in file_title for k in ['first', '1st', 'q1']):
+                        quarter_match = True
+                    elif quarter == 'Q2' and any(k in file_title for k in ['second', '2nd', 'q2']):
+                        quarter_match = True
+                    elif quarter == 'Q3' and any(k in file_title for k in ['third', '3rd', 'q3']):
+                        quarter_match = True
+                    elif quarter == 'Q4' and any(k in file_title for k in ['fourth', '4th', 'q4']):
+                        quarter_match = True
+
+                    if not quarter_match:
+                        continue
+
+                # Return report with full PDF URL
+                pdf_url = report.get('file_path_url', '')
+                if not pdf_url:
+                    file_path = report.get('file_path', '')
+                    if file_path:
+                        pdf_url = config.get('file_base', 'http://api.pfltd.com.np/storage/') + file_path
+
+                return {
+                    'pdf_url': pdf_url,
+                    'fiscal_year': nepali_fy,
+                    'report_type': report_type,
+                    'quarter': quarter if report_type == 'quarterly' else None,
+                    'source': 'vijaya_jwt_api'
+                }
+
+        return None
+
+    except Exception as e:
+        print(f"  ❌ Error fetching from Vijaya API: {e}")
+        return None
+
+
+def fetch_from_nicbl_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch reports from NicAsia Laghubitta API"""
+    try:
+        config = MICROFINANCE_DYNAMIC_API["NICLBSL"]
+        api_url = config["api_base"]
+
+        # Add fiscal year filter
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+        api_url_with_year = f"{api_url}?fiscalYear={nepali_fy.replace('/', '%2F')}"
+
+        response = requests.get(api_url_with_year, timeout=15)
+
+        if response.status_code != 200:
+            # Try without fiscal year filter
+            response = requests.get(api_url, timeout=15)
+            if response.status_code != 200:
+                return None
+
+        data = response.json()
+
+        # Determine target category
+        target_category = config["annual_category"] if report_type == "annual" else config["quarterly_category"]
+
+        # Parse response (similar to Sanima structure)
+        for category in data:
+            category_name = category.get('categoryTitle', '') or category.get('name', '')
+
+            if target_category.lower() not in category_name.lower():
+                continue
+
+            # Look for sub-categories or documents
+            documents = category.get('documents', [])
+            sub_categories = category.get('subCategories', [])
+
+            # Check documents in main category
+            for doc in documents:
+                doc_fiscal_year = doc.get('fiscal_year', '')
+                doc_title = doc.get('name', '') or doc.get('title', '')
+
+                # Check fiscal year match
+                if not (fiscal_year in doc_fiscal_year or nepali_fy in doc_fiscal_year):
+                    continue
+
+                # For quarterly, check quarter
+                if report_type == "quarterly" and quarter:
+                    title_lower = doc_title.lower()
+                    quarter_match = False
+
+                    if quarter == 'Q1' and any(k in title_lower for k in ['first', '1st', 'q1']):
+                        quarter_match = True
+                    elif quarter == 'Q2' and any(k in title_lower for k in ['second', '2nd', 'q2']):
+                        quarter_match = True
+                    elif quarter == 'Q3' and any(k in title_lower for k in ['third', '3rd', 'q3']):
+                        quarter_match = True
+                    elif quarter == 'Q4' and any(k in title_lower for k in ['fourth', '4th', 'q4']):
+                        quarter_match = True
+
+                    if not quarter_match:
+                        continue
+
+                # Extract PDF URL
+                file_path = doc.get('file', '')
+                pdf_url = config["file_base"] + file_path if file_path else ''
+
+                if pdf_url:
+                    return {
+                        'pdf_url': pdf_url,
+                        'fiscal_year': nepali_fy,
+                        'report_type': report_type,
+                        'quarter': quarter if report_type == 'quarterly' else None,
+                        'source': 'nicbl_api'
+                    }
+
+            # Check sub-categories
+            for sub_cat in sub_categories:
+                sub_docs = sub_cat.get('documents', [])
+                for doc in sub_docs:
+                    doc_fiscal_year = doc.get('fiscal_year', '')
+                    doc_title = doc.get('name', '') or doc.get('title', '')
+
+                    if fiscal_year in doc_fiscal_year or nepali_fy in doc_fiscal_year:
+                        # Quarter check for quarterly reports
+                        if report_type == "quarterly" and quarter:
+                            title_lower = doc_title.lower()
+                            quarter_match = False
+
+                            if quarter == 'Q1' and any(k in title_lower for k in ['first', '1st', 'q1']):
+                                quarter_match = True
+                            elif quarter == 'Q2' and any(k in title_lower for k in ['second', '2nd', 'q2']):
+                                quarter_match = True
+                            elif quarter == 'Q3' and any(k in title_lower for k in ['third', '3rd', 'q3']):
+                                quarter_match = True
+                            elif quarter == 'Q4' and any(k in title_lower for k in ['fourth', '4th', 'q4']):
+                                quarter_match = True
+
+                            if not quarter_match:
+                                continue
+
+                        file_path = doc.get('file', '')
+                        pdf_url = config["file_base"] + file_path if file_path else ''
+
+                        if pdf_url:
+                            return {
+                                'pdf_url': pdf_url,
+                                'fiscal_year': nepali_fy,
+                                'report_type': report_type,
+                                'quarter': quarter if report_type == 'quarterly' else None,
+                                'source': 'nicbl_api'
+                            }
+
+        return None
+
+    except Exception as e:
+        print(f"  ❌ Error fetching from NicAsia Laghubitta API: {e}")
+        return None
+
+
+def fetch_from_gilb_ninja_tables(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch reports from Global IME Laghubitta using Ninja Tables API"""
+    try:
+        config = MICROFINANCE_DYNAMIC_API["GILB"]
+        page_url = config["annual_page"] if report_type == "annual" else config["quarterly_page"]
+
+        # Get API URLs from page
+        response = requests.get(page_url, timeout=15)
+        if response.status_code != 200:
+            return None
+
+        html = response.text
+
+        # Extract API URLs
+        pattern = r'"data_request_url":"(https:\\/\\/gilb\.com\.np\\/wp-admin\\/admin-ajax\.php[^"]+)"'
+        matches = re.findall(pattern, html)
+
+        if not matches:
+            return None
+
+        # Normalize fiscal year
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+        # Check special mapping for GILB
+        special_mapping = config.get("special_mapping", {})
+        for ordinal, mapped_year in special_mapping.items():
+            if mapped_year == nepali_fy or mapped_year == fiscal_year:
+                # Search for ordinal in title (e.g., "8th annual")
+                for match in matches:
+                    clean_url = match.replace('\\/', '/')
+                    api_response = requests.get(clean_url, timeout=10)
+                    if api_response.status_code == 200:
+                        data = api_response.json()
+                        for row in data:
+                            title = row.get('report_details', '').lower()
+                            if ordinal in title:
+                                # Extract PDF link
+                                downloads = row.get('downloads', '')
+                                link_match = re.search(r'href=["\']([^"\']+)["\']', downloads)
+                                if link_match:
+                                    return {
+                                        'pdf_url': link_match.group(1),
+                                        'fiscal_year': nepali_fy,
+                                        'report_type': report_type,
+                                        'quarter': quarter if report_type == 'quarterly' else None,
+                                        'source': 'gilb_ninja_tables'
+                                    }
+
+        # Standard search by fiscal year
+        for raw_url in matches:
+            clean_url = raw_url.replace('\\/', '/')
+
+            api_response = requests.get(clean_url, timeout=10)
+            if api_response.status_code != 200:
+                continue
+
+            data = api_response.json()
+
+            for row in data:
+                if 'report_details' not in row:
+                    continue
+
+                title = row.get('report_details', '')
+
+                # Check fiscal year match
+                if not (fiscal_year in title or nepali_fy in title or english_fy in title):
+                    continue
+
+                # For quarterly, check quarter
+                if report_type == "quarterly" and quarter:
+                    title_lower = title.lower()
+                    quarter_match = False
+
+                    if quarter == 'Q1' and any(k in title_lower for k in ['first', '1st', 'q1']):
+                        quarter_match = True
+                    elif quarter == 'Q2' and any(k in title_lower for k in ['second', '2nd', 'q2', 'mid']):
+                        quarter_match = True
+                    elif quarter == 'Q3' and any(k in title_lower for k in ['third', '3rd', 'q3']):
+                        quarter_match = True
+                    elif quarter == 'Q4' and any(k in title_lower for k in ['fourth', '4th', 'q4']):
+                        quarter_match = True
+
+                    if not quarter_match:
+                        continue
+
+                # Extract PDF link
+                downloads = row.get('downloads', '')
+                link_match = re.search(r'href=["\']([^"\']+)["\']', downloads)
+
+                if link_match:
+                    return {
+                        'pdf_url': link_match.group(1),
+                        'fiscal_year': nepali_fy,
+                        'report_type': report_type,
+                        'quarter': quarter if report_type == 'quarterly' else None,
+                        'source': 'gilb_ninja_tables'
+                    }
+
+        return None
+
+    except Exception as e:
+        print(f"  ❌ Error fetching from GILB Ninja Tables: {e}")
+        return None
+
+
+def fetch_from_ddbl_csrf_form(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch reports from Deprosc Laghubitta using CSRF form"""
+    try:
+        from bs4 import BeautifulSoup
+
+        config = MICROFINANCE_CSRF_FORM["DDBL"]
+        url = config["annual_url"] if report_type == "annual" else config["quarterly_url"]
+
+        session = requests.Session()
+
+        # Get page with CSRF token
+        response = session.get(url, timeout=15)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Extract CSRF token
+        csrf_token = soup.find('input', {'name': config["csrf_field"]})['value']
+
+        # Get years from dropdown
+        select_box = soup.find('select', {'id': config["year_field"]})
+        options = select_box.find_all('option')
+
+        # Try each year
+        for opt in options:
+            year_id = opt.get('value')
+            year_label = opt.get_text(strip=True)
+
+            if not year_id or year_id == 'selectyear':
+                continue
+
+            # Submit form
+            payload = {
+                config["csrf_field"]: csrf_token,
+                'YearURL': '',
+                config["year_field"]: year_id
+            }
+
+            post_response = session.post(url, data=payload, timeout=15)
+            post_soup = BeautifulSoup(post_response.content, 'html.parser')
+
+            # Extract reports
+            reports_container = post_soup.find_all('div', class_='portfolio-item')
+
+            for item in reports_container:
+                link_tag = item.find('a', href=True)
+                title_tag = item.find('h4')
+
+                if not link_tag:
+                    continue
+
+                pdf_url = link_tag['href']
+                if not pdf_url.startswith('http'):
+                    pdf_url = 'https://www.deproscbank.com.np' + pdf_url
+
+                title = title_tag.get_text(strip=True) if title_tag else ""
+
+                # Extract fiscal year from title or year label
+                fy_match = re.search(r'(\d{4})[/\-](\d{2,4})', title or year_label)
+                if fy_match:
+                    doc_fy = f"{fy_match.group(1)}/{fy_match.group(2)[-2:]}"
+                else:
+                    doc_fy = year_label
+
+                # Normalize and check fiscal year
+                nepali_fy, _ = normalize_fiscal_year(fiscal_year)
+
+                if doc_fy == fiscal_year or doc_fy == nepali_fy:
+                    # For quarterly, check quarter in title
+                    if report_type == "quarterly" and quarter:
+                        title_lower = title.lower()
+                        quarter_match = False
+
+                        if quarter == 'Q1' and any(k in title_lower for k in ['first', '1st', 'q1']):
+                            quarter_match = True
+                        elif quarter == 'Q2' and any(k in title_lower for k in ['second', '2nd', 'q2']):
+                            quarter_match = True
+                        elif quarter == 'Q3' and any(k in title_lower for k in ['third', '3rd', 'q3']):
+                            quarter_match = True
+                        elif quarter == 'Q4' and any(k in title_lower for k in ['fourth', '4th', 'q4']):
+                            quarter_match = True
+
+                        if not quarter_match:
+                            continue
+
+                    return {
+                        'pdf_url': pdf_url,
+                        'fiscal_year': nepali_fy,
+                        'report_type': report_type,
+                        'quarter': quarter if report_type == 'quarterly' else None,
+                        'source': 'csrf_form'
+                    }
+
+        return None
+
+    except Exception as e:
+        print(f"  ❌ Error fetching from Deprosc CSRF form: {e}")
+        return None
+
+
+def has_microfinance_dynamic_api(company_symbol: str) -> bool:
+    """Check if microfinance company has dynamic API support"""
+    return company_symbol.upper() in MICROFINANCE_DYNAMIC_API
+
+
+def has_microfinance_csrf_form(company_symbol: str) -> bool:
+    """Check if microfinance company uses CSRF form"""
+    return company_symbol.upper() in MICROFINANCE_CSRF_FORM
+
+
+def has_microfinance_pagination(company_symbol: str) -> bool:
+    """Check if microfinance company uses pagination"""
+    return company_symbol.upper() in MICROFINANCE_PAGINATED
+
+
+# ============================================================================
+# COMMON HELPER FUNCTIONS
+# ============================================================================
 
 def get_scraping_urls(bank: Dict, report_type: str) -> List[tuple]:
     """Get appropriate URLs for scraping based on report type"""
@@ -1052,89 +1833,98 @@ def insert_document_to_db(bank_id: int, bank_symbol: str, report: Dict) -> Dict:
     try:
         pdf_url = report['file_url']
 
-        # ✅ STEP 1: Check if PDF URL already exists in database
         print(f"🔍 Checking if PDF URL already exists...")
         existing = supabase.table("financial_documents").select("*").eq("pdf_url", pdf_url).execute()
 
         if existing.data and len(existing.data) > 0:
-            # ⚠️ DUPLICATE FOUND - Use AI to determine correct metadata
             existing_doc = existing.data[0]
-            print(f"⚠️  PDF URL already exists in database!")
-            print(f"   Existing: fiscal_year={existing_doc.get('fiscal_year')}, report_type={existing_doc.get('report_type')}, quarter={existing_doc.get('quarter')}")
-            print(f"   Requested: fiscal_year={report.get('fiscal_year')}, report_type={report.get('report_type')}, quarter={report.get('quarter')}")
 
-            # ✅ STEP 2: Use Gemini AI to verify which metadata is correct
+            print(f"⚠️  PDF URL already exists in database!")
+
             print(f"🤖 Using Gemini AI to verify correct metadata...")
             ai_metadata = extract_metadata_from_pdf_url(pdf_url, bank_symbol)
 
             if ai_metadata and ai_metadata.get('confidence') in ['high', 'medium']:
+
                 ai_fiscal_year = ai_metadata.get('fiscal_year')
                 ai_report_type = ai_metadata.get('report_type')
                 ai_quarter = ai_metadata.get('quarter')
 
-                print(f"   AI Result: fiscal_year={ai_fiscal_year}, report_type={ai_report_type}, quarter={ai_quarter}")
+                # 🔥 FIX 1 — enforce quarter rule
+                if ai_report_type == "annual":
+                    ai_quarter = None
+                else:
+                    ai_quarter = ai_quarter or None
 
-                # Check if existing data matches AI extraction
                 metadata_matches = (
-                    existing_doc.get('fiscal_year') == ai_fiscal_year and
-                    existing_doc.get('report_type') == ai_report_type and
-                    existing_doc.get('quarter') == ai_quarter
+                        existing_doc.get('fiscal_year') == ai_fiscal_year and
+                        existing_doc.get('report_type') == ai_report_type and
+                        existing_doc.get('quarter') == ai_quarter
                 )
 
                 if metadata_matches:
-                    print(f"   ✅ Existing metadata is CORRECT. Returning existing record.")
+                    print("   ✅ Existing metadata is correct.")
                     return existing_doc
                 else:
-                    # ✅ STEP 3: Update existing record with correct AI-verified metadata
-                    print(f"   ⚠️  Existing metadata is INCORRECT. Updating with AI-verified data...")
+                    print("   ⚠️ Updating incorrect metadata...")
+
                     update_data = {
                         'fiscal_year': ai_fiscal_year,
                         'report_type': ai_report_type,
-                        'quarter': ai_quarter,
+                        'quarter': ai_quarter,  # ✅ fixed
                         'scraped_at': datetime.now().isoformat(),
                         'method': 'api'
                     }
 
-                    updated = supabase.table("financial_documents")\
-                        .update(update_data)\
-                        .eq("id", existing_doc['id'])\
+                    updated = (
+                        supabase.table("financial_documents")
+                        .update(update_data)
+                        .eq("id", existing_doc['id'])
                         .execute()
+                    )
 
-                    if updated.data and len(updated.data) > 0:
-                        print(f"   ✅ Metadata corrected successfully!")
+                    if updated.data:
                         return updated.data[0]
-            else:
-                print(f"   ⚠️  AI extraction failed or low confidence. Keeping existing record.")
-                return existing_doc
 
-        # ✅ NEW PDF URL - Just insert directly (no AI verification needed)
-        print(f"✅ PDF URL is new. Inserting directly...")
+            return existing_doc
+
+        # ✅ NEW INSERT
+        print("✅ PDF URL is new. Inserting directly...")
+
+        report_type = report['report_type']
+        quarter = report.get('quarter')
+
+        # 🔥 FIX 2 — enforce constraint BEFORE insert
+        if report_type == "annual":
+            quarter = None
+        else:
+            quarter = quarter or None
 
         doc_data = {
             'bank_id': bank_id,
             'bank_symbol': bank_symbol,
             'pdf_url': pdf_url,
             'fiscal_year': report['fiscal_year'],
-            'report_type': report['report_type'],
-            'quarter': report.get('quarter'),
+            'report_type': report_type,
+            'quarter': quarter,  # ✅ fixed
             'scraped_at': datetime.now().isoformat(),
             'method': 'api'
         }
 
         result = supabase.table("financial_documents").insert(doc_data).execute()
-        if result.data and len(result.data) > 0:
-            print(f"   ✅ Document inserted successfully!")
+
+        if result.data:
+            print("   ✅ Document inserted successfully!")
             return result.data[0]
+
         return None
 
     except Exception as e:
-        # Handle unique constraint violations gracefully
         if "unique constraint" in str(e).lower() or "duplicate" in str(e).lower():
-            print(f"⚠️  Duplicate constraint violation detected")
-            # Fetch and return existing document
             existing = supabase.table("financial_documents").select("*").eq("pdf_url", report['file_url']).execute()
             if existing.data:
                 return existing.data[0]
+
         print(f"❌ Error inserting document: {e}")
         raise
 
@@ -2718,6 +3508,461 @@ def get_finance_company_quarterly_report(company_symbol: str, fiscal_year: str, 
             print(f"  Error scraping {url}: {e}")
 
     raise HTTPException(status_code=404, detail="Report not found")
+
+
+# ============================================================================
+# MICROFINANCE COMPANY API ENDPOINTS
+# ============================================================================
+
+@app.get("/microfinance/annual-report")
+def get_microfinance_annual_report(microfinance_symbol: str, fiscal_year: str):
+    """
+    Get annual report for a microfinance company with dynamic API support
+    Example: /microfinance/annual-report?microfinance_symbol=VLBS&fiscal_year=2078/79
+
+    Supports:
+    - Dynamic APIs (VLBS, NICLBSL, PROFL, GILB)
+    - CSRF Forms (DDBL)
+    - Pagination
+    - Static Firecrawl
+    """
+    microfinance_symbol = microfinance_symbol.upper()
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"\n📊 MICROFINANCE ANNUAL REPORT REQUEST: {microfinance_symbol} - {nepali_fy}")
+    print("="*80)
+    print(f"📅 Fiscal Year: {nepali_fy} (Nepali) / {english_fy} (English)")
+
+    # Get microfinance company info
+    company = get_microfinance_company_info(microfinance_symbol)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Microfinance company {microfinance_symbol} not found in database")
+
+    print(f"🏦 Company: {company.get('microfinance_name')} (ID: {company['id']})")
+
+    # 1. Check database first
+    print("🔍 Checking database...")
+    existing = check_microfinance_company_document_exists(company['id'], nepali_fy, 'annual') or \
+               check_microfinance_company_document_exists(company['id'], english_fy, 'annual')
+
+    if existing:
+        print("✅ FOUND IN DATABASE!")
+        return {
+            "status": "found_in_database",
+            "source": "database",
+            "document": existing
+        }
+
+    print("❌ Not in database.")
+
+    # 2. Check for Dynamic API support
+    if has_microfinance_dynamic_api(microfinance_symbol):
+        print(f"🔌 Microfinance company has dynamic API support - fetching from API...")
+
+        try:
+            api_doc = None
+
+            if microfinance_symbol == "VLBS":
+                print("  Using Vijaya JWT API")
+                api_doc = fetch_from_vijaya_jwt_api(fiscal_year, 'annual')
+
+            elif microfinance_symbol == "NICLBSL":
+                print("  Using NicAsia Laghubitta API")
+                api_doc = fetch_from_nicbl_api(fiscal_year, 'annual')
+
+            elif microfinance_symbol == "GILB":
+                print("  Using Global IME Ninja Tables")
+                api_doc = fetch_from_gilb_ninja_tables(fiscal_year, 'annual')
+
+            elif microfinance_symbol == "PROFL":
+                print("  Using Progressive Finance API")
+                # Use existing PROFL handler
+                config = MICROFINANCE_DYNAMIC_API["PROFL"]
+                headers = {"x-api-token": config["api_token"]}
+                response = requests.get(config["api_url"], headers=headers, timeout=15)
+                if response.status_code == 200:
+                    documents = response.json()
+                    for doc in documents:
+                        if doc.get('file_type') == 'Annual Report':
+                            doc_fy = doc.get('fiscal_year', '')
+                            if fiscal_year in doc_fy or nepali_fy in doc_fy:
+                                file_path = doc.get('file_path', '') or doc.get('file_path_url', '')
+                                api_doc = {
+                                    'pdf_url': file_path,
+                                    'fiscal_year': nepali_fy,
+                                    'report_type': 'annual',
+                                    'source': 'profl_api'
+                                }
+                                break
+
+            if api_doc:
+                print("  ✅ Found via dynamic API")
+                inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, api_doc)
+                return {
+                    "status": "found_via_api",
+                    "source": "dynamic_api",
+                    "document": inserted
+                }
+            else:
+                print("  ❌ Not found via dynamic API")
+
+        except Exception as e:
+            print(f"  ❌ API error: {e}")
+
+    # 3. Check for CSRF Form support
+    if has_microfinance_csrf_form(microfinance_symbol):
+        print(f"📝 Microfinance company uses CSRF form - fetching...")
+        try:
+            csrf_doc = fetch_from_ddbl_csrf_form(fiscal_year, 'annual')
+            if csrf_doc:
+                print("  ✅ Found via CSRF form")
+                inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, csrf_doc)
+                return {
+                    "status": "found_via_csrf",
+                    "source": "csrf_form",
+                    "document": inserted
+                }
+            else:
+                print("  ❌ Not found via CSRF form")
+        except Exception as e:
+            print(f"  ❌ CSRF form error: {e}")
+
+    # 4. Check for Pagination
+    if has_microfinance_pagination(microfinance_symbol):
+        print(f"📄 Microfinance company uses pagination - Checking multiple pages...")
+        config = MICROFINANCE_PAGINATED[microfinance_symbol]
+        max_pages = config.get("max_pages", 5)
+        base_url = config.get("annual_url")
+        
+        # Only proceed if we have an Annual URL configured
+        if base_url:
+            for page in range(1, max_pages + 1):
+                target_url = base_url.format(page=page)
+                print(f"   🔍 Scanning Page {page}: {target_url}")
+                
+                try:
+                    result = firecrawl.scrape(target_url, formats=[
+                        "markdown",
+                        {
+                            "type": "json",
+                            "prompt": f"Extract the EXACT direct PDF link for the annual report of fiscal year {nepali_fy} or {english_fy}. Return JSON: {{'fiscal_year': '{nepali_fy}', 'report_type': 'annual', 'pdf_url': '<link>'}}"
+                        }
+                    ])
+                    
+                    if result.json and isinstance(result.json, dict):
+                        pdf_url = result.json.get('pdf_url')
+                        if pdf_url and pdf_url.endswith('.pdf'):
+                            # Success! Found it on this page
+                            print(f"   ✅ Found on Page {page}")
+                            report = {
+                                'pdf_url': pdf_url,
+                                'fiscal_year': nepali_fy,
+                                'report_type': 'annual',
+                                'source': 'paginated_scrape'
+                            }
+                            inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, report)
+                            return {
+                                "status": "found_via_pagination",
+                                "source": "paginated_scrape",
+                                "page": page,
+                                "document": inserted
+                            }
+                except Exception as e:
+                    print(f"   ⚠️ Error on page {page}: {e}")
+                    # Continue to next page even if error
+                    continue
+        else:
+            print("   ⚠️ No annual_url configured for pagination, skipping.")
+
+    # 5. Fallback to Firecrawl scraping
+    print("🔍 Falling back to Firecrawl scraping...")
+
+    urls = []
+    if company.get('annual_report_url'):
+        urls.append(company['annual_report_url'])
+    if company.get('report_page'):
+        urls.append(company['report_page'])
+
+    if not urls:
+        raise HTTPException(status_code=404, detail=f"No annual report URLs configured for {microfinance_symbol}")
+
+    # Try each URL
+    for url in urls:
+        try:
+            print(f"🔍 Scraping: {url}")
+            result = firecrawl.scrape(url, formats=[
+                "markdown",
+                {
+                    "type": "json",
+                    "prompt": f"Extract the EXACT direct PDF link for the annual report of fiscal year {nepali_fy} or {english_fy}. Return: {{\"fiscal_year\": \"{nepali_fy}\", \"report_type\": \"annual\", \"pdf_url\": \"<direct_pdf_link>\"}}"
+                }
+            ])
+
+            if result.json and isinstance(result.json, dict):
+                pdf_url = result.json.get('pdf_url')
+                if pdf_url and pdf_url.endswith('.pdf'):
+                    report = {
+                        'pdf_url': pdf_url,
+                        'fiscal_year': nepali_fy,
+                        'report_type': 'annual',
+                        'source': 'static'
+                    }
+                    inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, report)
+                    print("✅ FOUND AND SAVED!")
+                    return {
+                        "status": "found_via_scraping",
+                        "source": "firecrawl",
+                        "document": inserted
+                    }
+        except Exception as e:
+            print(f"  ❌ Error scraping {url}: {e}")
+            continue
+
+    raise HTTPException(status_code=404, detail=f"Annual report for {microfinance_symbol} {nepali_fy} not found")
+
+
+@app.get("/microfinance/quarterly-report")
+def get_microfinance_quarterly_report(microfinance_symbol: str, fiscal_year: str, quarter: str):
+    """
+    Get quarterly report for a microfinance company with dynamic API support
+    Example: /microfinance/quarterly-report?microfinance_symbol=VLBS&fiscal_year=2078/79&quarter=Q1
+
+    Supports:
+    - Dynamic APIs (VLBS, NICLBSL, PROFL, GILB)
+    - CSRF Forms (DDBL)
+    - Pagination
+    - Static Firecrawl
+    """
+    microfinance_symbol = microfinance_symbol.upper()
+    quarter = quarter.upper()
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"\n📊 MICROFINANCE QUARTERLY REPORT REQUEST: {microfinance_symbol} - {nepali_fy} {quarter}")
+    print("="*80)
+    print(f"📅 Fiscal Year: {nepali_fy} (Nepali) / {english_fy} (English)")
+    print(f"📅 Quarter: {quarter}")
+
+    # Validate quarter
+    if quarter not in ['Q1', 'Q2', 'Q3', 'Q4']:
+        raise HTTPException(status_code=400, detail="Quarter must be Q1, Q2, Q3, or Q4")
+
+    # Get microfinance company info
+    company = get_microfinance_company_info(microfinance_symbol)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Microfinance company {microfinance_symbol} not found in database")
+
+    print(f"🏦 Company: {company.get('microfinance_name')} (ID: {company['id']})")
+
+    # 1. Check database first
+    print(f"🔍 Checking database for {quarter}...")
+    existing = check_microfinance_company_document_exists(company['id'], nepali_fy, 'quarterly', quarter) or \
+               check_microfinance_company_document_exists(company['id'], english_fy, 'quarterly', quarter)
+
+    if existing:
+        print(f"✅ FOUND {quarter} IN DATABASE!")
+        return {
+            "status": "found_in_database",
+            "source": "database",
+            "document": existing
+        }
+
+    print(f"❌ {quarter} not in database.")
+
+    # 2. Check for Dynamic API support
+    if has_microfinance_dynamic_api(microfinance_symbol):
+        print(f"🔌 Microfinance company has dynamic API support - fetching from API...")
+
+        try:
+            api_doc = None
+
+            if microfinance_symbol == "VLBS":
+                print("  Using Vijaya JWT API")
+                api_doc = fetch_from_vijaya_jwt_api(fiscal_year, 'quarterly', quarter)
+
+            elif microfinance_symbol == "NICLBSL":
+                print("  Using NicAsia Laghubitta API")
+                api_doc = fetch_from_nicbl_api(fiscal_year, 'quarterly', quarter)
+
+            elif microfinance_symbol == "GILB":
+                print("  Using Global IME Ninja Tables")
+                api_doc = fetch_from_gilb_ninja_tables(fiscal_year, 'quarterly', quarter)
+
+            elif microfinance_symbol == "PROFL":
+                print("  Using Progressive Finance API")
+                config = MICROFINANCE_DYNAMIC_API["PROFL"]
+                headers = {"x-api-token": config["api_token"]}
+                response = requests.get(config["api_url"], headers=headers, timeout=15)
+                if response.status_code == 200:
+                    documents = response.json()
+                    for doc in documents:
+                        if doc.get('file_type') == 'Quarterly Report':
+                            doc_fy = doc.get('fiscal_year', '')
+                            doc_title = doc.get('file_title', '').lower()
+
+                            # Check fiscal year and quarter
+                            if (fiscal_year in doc_fy or nepali_fy in doc_fy):
+                                quarter_match = False
+                                if quarter == 'Q1' and any(k in doc_title for k in ['first', '1st', 'q1']):
+                                    quarter_match = True
+                                elif quarter == 'Q2' and any(k in doc_title for k in ['second', '2nd', 'q2']):
+                                    quarter_match = True
+                                elif quarter == 'Q3' and any(k in doc_title for k in ['third', '3rd', 'q3']):
+                                    quarter_match = True
+                                elif quarter == 'Q4' and any(k in doc_title for k in ['fourth', '4th', 'q4']):
+                                    quarter_match = True
+
+                                if quarter_match:
+                                    file_path = doc.get('file_path', '') or doc.get('file_path_url', '')
+                                    api_doc = {
+                                        'pdf_url': file_path,
+                                        'fiscal_year': nepali_fy,
+                                        'report_type': 'quarterly',
+                                        'quarter': quarter,
+                                        'source': 'profl_api'
+                                    }
+                                    break
+
+            if api_doc:
+                print(f"  ✅ Found {quarter} via dynamic API")
+                inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, api_doc)
+                return {
+                    "status": "found_via_api",
+                    "source": "dynamic_api",
+                    "document": inserted
+                }
+            else:
+                print(f"  ❌ {quarter} not found via dynamic API")
+
+        except Exception as e:
+            print(f"  ❌ API error: {e}")
+
+    # 3. Check for CSRF Form support
+    if has_microfinance_csrf_form(microfinance_symbol):
+        print(f"📝 Microfinance company uses CSRF form - fetching...")
+        try:
+            csrf_doc = fetch_from_ddbl_csrf_form(fiscal_year, 'quarterly', quarter)
+            if csrf_doc:
+                print(f"  ✅ Found {quarter} via CSRF form")
+                inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, csrf_doc)
+                return {
+                    "status": "found_via_csrf",
+                    "source": "csrf_form",
+                    "document": inserted
+                }
+            else:
+                print(f"  ❌ {quarter} not found via CSRF form")
+        except Exception as e:
+            print(f"  ❌ CSRF form error: {e}")
+
+    # 4. Check for Pagination
+    if has_microfinance_pagination(microfinance_symbol):
+        print(f"📄 Microfinance company uses pagination - Checking multiple pages...")
+        config = MICROFINANCE_PAGINATED[microfinance_symbol]
+        max_pages = config.get("max_pages", 5)
+        base_url = config.get("quarterly_url")
+        
+        # Determine keywords for the quarter
+        q_keywords = {
+            'Q1': 'First,1st,Ashwin,Asoj',
+            'Q2': 'Second,2nd,Poush,Mid-Year',
+            'Q3': 'Third,3rd,Chaitra',
+            'Q4': 'Fourth,4th,Ashad,Ashadh,Annual'
+        }
+        keywords = q_keywords.get(quarter, quarter)
+        
+        if base_url:
+            for page in range(1, max_pages + 1):
+                target_url = base_url.format(page=page)
+                print(f"   🔍 Scanning Page {page}: {target_url}")
+                
+                try:
+                    result = firecrawl.scrape(target_url, formats=[
+                        "markdown",
+                        {
+                            "type": "json",
+                            "prompt": f"Find the {quarter} ({keywords}) quarterly/interim report for {nepali_fy}. Return JSON: {{'fiscal_year': '{nepali_fy}', 'quarter': '{quarter}', 'report_type': 'quarterly', 'pdf_url': '<link>'}}"
+                        }
+                    ])
+                    
+                    if result.json and isinstance(result.json, dict):
+                        pdf_url = result.json.get('pdf_url')
+                        if pdf_url:  # Allow images too if needed, but prefer PDF
+                            print(f"   ✅ Found on Page {page}")
+                            report = {
+                                'pdf_url': pdf_url,
+                                'fiscal_year': nepali_fy,
+                                'report_type': 'quarterly',
+                                'quarter': quarter,
+                                'source': 'paginated_scrape'
+                            }
+                            inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, report)
+                            return {
+                                "status": "found_via_pagination",
+                                "source": "paginated_scrape",
+                                "page": page,
+                                "document": inserted
+                            }
+                except Exception as e:
+                    print(f"   ⚠️ Error on page {page}: {e}")
+                    continue
+        else:
+            print("   ⚠️ No quarterly_url configured for pagination, skipping.")
+
+    # 5. Fallback to Firecrawl scraping
+    print(f"🔍 Falling back to Firecrawl scraping for {quarter}...")
+
+    urls = []
+    if company.get('quarter_report_url'):
+        urls.append(company['quarter_report_url'])
+    if company.get('report_page'):
+        urls.append(company['report_page'])
+
+    if not urls:
+        raise HTTPException(status_code=404, detail=f"No quarterly report URLs configured for {microfinance_symbol}")
+
+    # Map quarter to keywords
+    quarter_keywords = {
+        'Q1': 'first|1st|ashwin',
+        'Q2': 'second|2nd|poush|mid-term',
+        'Q3': 'third|3rd|chaitra|nine month',
+        'Q4': 'fourth|4th|ashad'
+    }
+
+    # Try each URL
+    for url in urls:
+        try:
+            print(f"🔍 Scraping: {url}")
+            result = firecrawl.scrape(url, formats=[
+                "markdown",
+                {
+                    "type": "json",
+                    "prompt": f"Extract the EXACT direct PDF link for the {quarter} ({quarter_keywords[quarter]}) quarterly/interim report of fiscal year {nepali_fy} or {english_fy}. Return: {{\"fiscal_year\": \"{nepali_fy}\", \"report_type\": \"quarterly\", \"quarter\": \"{quarter}\", \"pdf_url\": \"<direct_pdf_link>\"}}"
+                }
+            ])
+
+            if result.json and isinstance(result.json, dict):
+                pdf_url = result.json.get('pdf_url')
+                if pdf_url and pdf_url.endswith('.pdf'):
+                    report = {
+                        'pdf_url': pdf_url,
+                        'fiscal_year': nepali_fy,
+                        'report_type': 'quarterly',
+                        'quarter': quarter,
+                        'source': 'static'
+                    }
+                    inserted = insert_microfinance_company_document_to_db(company['id'], microfinance_symbol, report)
+                    print(f"✅ FOUND {quarter} AND SAVED!")
+                    return {
+                        "status": "found_via_scraping",
+                        "source": "firecrawl",
+                        "document": inserted
+                    }
+        except Exception as e:
+            print(f"  ❌ Error scraping {url}: {e}")
+            continue
+
+    raise HTTPException(status_code=404, detail=f"Quarterly report {quarter} for {microfinance_symbol} {nepali_fy} not found")
+
 
 if __name__ == "__main__":
     import uvicorn

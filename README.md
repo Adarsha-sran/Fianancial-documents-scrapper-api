@@ -423,13 +423,4 @@ For issues or questions:
 - Review the database schema in Supabase
 - Contact the development team
 
-## License
-
-Internal company tool - All rights reserved.
-
----
-
-**Last Updated**: November 2025  
-**Version**: 1.0.0  
-**Maintained By**: Development Team
 

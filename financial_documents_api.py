@@ -3633,13 +3633,13 @@ def get_microfinance_annual_report(microfinance_symbol: str, fiscal_year: str):
         config = MICROFINANCE_PAGINATED[microfinance_symbol]
         max_pages = config.get("max_pages", 5)
         base_url = config.get("annual_url")
-        
+
         # Only proceed if we have an Annual URL configured
         if base_url:
             for page in range(1, max_pages + 1):
                 target_url = base_url.format(page=page)
                 print(f"   🔍 Scanning Page {page}: {target_url}")
-                
+
                 try:
                     result = firecrawl.scrape(target_url, formats=[
                         "markdown",
@@ -3648,7 +3648,7 @@ def get_microfinance_annual_report(microfinance_symbol: str, fiscal_year: str):
                             "prompt": f"Extract the EXACT direct PDF link for the annual report of fiscal year {nepali_fy} or {english_fy}. Return JSON: {{'fiscal_year': '{nepali_fy}', 'report_type': 'annual', 'pdf_url': '<link>'}}"
                         }
                     ])
-                    
+
                     if result.json and isinstance(result.json, dict):
                         pdf_url = result.json.get('pdf_url')
                         if pdf_url and pdf_url.endswith('.pdf'):
@@ -3860,7 +3860,7 @@ def get_microfinance_quarterly_report(microfinance_symbol: str, fiscal_year: str
         config = MICROFINANCE_PAGINATED[microfinance_symbol]
         max_pages = config.get("max_pages", 5)
         base_url = config.get("quarterly_url")
-        
+
         # Determine keywords for the quarter
         q_keywords = {
             'Q1': 'First,1st,Ashwin,Asoj',
@@ -3869,12 +3869,12 @@ def get_microfinance_quarterly_report(microfinance_symbol: str, fiscal_year: str
             'Q4': 'Fourth,4th,Ashad,Ashadh,Annual'
         }
         keywords = q_keywords.get(quarter, quarter)
-        
+
         if base_url:
             for page in range(1, max_pages + 1):
                 target_url = base_url.format(page=page)
                 print(f"   🔍 Scanning Page {page}: {target_url}")
-                
+
                 try:
                     result = firecrawl.scrape(target_url, formats=[
                         "markdown",
@@ -3883,7 +3883,7 @@ def get_microfinance_quarterly_report(microfinance_symbol: str, fiscal_year: str
                             "prompt": f"Find the {quarter} ({keywords}) quarterly/interim report for {nepali_fy}. Return JSON: {{'fiscal_year': '{nepali_fy}', 'quarter': '{quarter}', 'report_type': 'quarterly', 'pdf_url': '<link>'}}"
                         }
                     ])
-                    
+
                     if result.json and isinstance(result.json, dict):
                         pdf_url = result.json.get('pdf_url')
                         if pdf_url:  # Allow images too if needed, but prefer PDF
@@ -3964,8 +3964,473 @@ def get_microfinance_quarterly_report(microfinance_symbol: str, fiscal_year: str
     raise HTTPException(status_code=404, detail=f"Quarterly report {quarter} for {microfinance_symbol} {nepali_fy} not found")
 
 
+
+
+# ============================================================================
+# LIFE INSURANCE COMPANY API CONFIGURATION
+# ============================================================================
+
+# Companies with dedicated dynamic REST APIs
+LIFE_INSURANCE_DYNAMIC_API = {
+    "PMLI": {
+        "name": "Prabhu Mahalaxmi Life Insurance",
+        "annual_api": "https://cms.pmlil.com/api/annual-reports?populate=*",
+        "quarterly_api": "https://cms.pmlil.com/api/interim-financial-reports?populate=*",
+        "file_base": "https://cms.pmlil.com",
+        "method": "pmli_api"
+    }
+}
+
+# Companies whose report pages use pagination (?page=N or /page/N/)
+LIFE_INSURANCE_PAGINATED = {
+    "HLI": {
+        "name": "Himalayan Life Insurance",
+        "annual_url": "https://himalayanlife.com.np/investor-relations/annual-reports/page/{page}/",
+        "quarterly_url": "https://himalayanlife.com.np/investor-relations/quarterly-reports/page/{page}/",
+        "method": "paginated",
+        "max_pages": 3,
+        "note": "Merged Union Life, Prime Life, Gurans Life into Himalayan Life"
+    },
+    "RJBCL": {
+        "name": "Rastriya Jeewan Beema Company",
+        "quarterly_url": "https://www.rbs.gov.np/en/downloads/financial-reports?page={page}",
+        "method": "paginated",
+        "max_pages": 5,
+        "annual_available": False,
+        "note": "Only quarterly reports published; newest uploads first; use annual report page for quarterly"
+    }
+}
+
+# Companies with static (single-page) report URLs — Metadata only, URLs sourced from DB
+LIFE_INSURANCE_STATIC = {
+    "NLICL": {"name": "National Life Insurance"},
+    "NLIC": {"name": "Nepal Life Insurance", "note": "Same page for annual and quarterly reports"},
+    "LICN": {"name": "Life Insurance Corporation Nepal"},
+    "ALICL": {"name": "Asian Life Insurance"},
+    "IMELIC": {"name": "IME Life Insurance"},
+    "RNLI": {"name": "Reliable Nepal Life Insurance"},
+    "SNLI": {"name": "Sun Nepal Life Insurance"},
+    "CLI": {
+        "name": "Citizen Life Insurance",
+        "quarter_naming": "nepali_months",
+        "note": "Quarterly reports labeled by Nepali month end: Aswin=Q1, Poush=Q2, Chaitra=Q3"
+    },
+    "SJLIC": {
+        "name": "SuryaJyoti Life Insurance",
+        "note": "Surya Life + Jyoti Life merged into SuryaJyoti Life Insurance from FY 2078/79 onward"
+    },
+    "SRLI": {"name": "Sanima Reliance Life Insurance"},
+    "CREST": {"name": "Crest Micro Life Insurance"},
+    "GMLI": {"name": "Guardian Micro Life Insurance"}
+}
+
+# Citizen Life uses Nepali month names for quarter labels instead of Q1/Q2/Q3/Q4
+# Nepal fiscal year: Q1=Shrawan-Aswin, Q2=Kartik-Poush, Q3=Magh-Chaitra, Q4=Baisakh-Ashadh
+CLI_QUARTER_NEPALI_MONTHS = {
+    "Q1": ["Aswin", "Ashwin", "Ashoj", "Asoj"],
+    "Q2": ["Poush", "Push"],
+    "Q3": ["Chaitra", "Chaita"],
+    "Q4": ["Ashadh", "Ashad", "Asar", "Jestha", "Shrawan", "Srawan"]
+}
+
+
+# ============================================================================
+# LIFE INSURANCE HELPER FUNCTIONS
+# ============================================================================
+
+def get_life_insurance_company_info(company_symbol: str) -> Optional[Dict]:
+    """Fetch life insurance company from life_insurance_companies table"""
+    try:
+        result = supabase.table("life_insurance_companies").select("*").eq("symbol", company_symbol.upper()).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+        return None
+    except Exception as e:
+        print(f"Error fetching life insurance company info: {e}")
+        return None
+
+
+def check_life_insurance_document_exists(company_id: int, fiscal_year: str, report_type: str,
+                                         quarter: Optional[str] = None) -> Optional[Dict]:
+    """Check if document already exists in life_insurance_companies_documents table"""
+    try:
+        query = (supabase.table("life_insurance_companies_documents")
+                 .select("*")
+                 .eq("life_insurance_id", company_id)
+                 .eq("fiscal_year", fiscal_year)
+                 .eq("report_type", report_type))
+        if quarter:
+            query = query.eq("quarter", quarter)
+        else:
+            query = query.is_("quarter", "null")
+        result = query.execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]
+
+        # Try alternate fiscal year format
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+        alt_fy = english_fy if fiscal_year == nepali_fy else nepali_fy
+        if alt_fy != fiscal_year:
+            query_alt = (supabase.table("life_insurance_companies_documents")
+                         .select("*")
+                         .eq("life_insurance_id", company_id)
+                         .eq("fiscal_year", alt_fy)
+                         .eq("report_type", report_type))
+            if quarter:
+                query_alt = query_alt.eq("quarter", quarter)
+            else:
+                query_alt = query_alt.is_("quarter", "null")
+            result_alt = query_alt.execute()
+            if result_alt.data and len(result_alt.data) > 0:
+                return result_alt.data[0]
+        return None
+    except Exception as e:
+        print(f"Error checking life insurance document: {e}")
+        return None
+
+
+def has_life_insurance_dynamic_api(company_symbol: str) -> bool:
+    return company_symbol.upper() in LIFE_INSURANCE_DYNAMIC_API
+
+
+def has_life_insurance_pagination(company_symbol: str) -> bool:
+    return company_symbol.upper() in LIFE_INSURANCE_PAGINATED
+
+
+def has_life_insurance_static(company_symbol: str) -> bool:
+    return company_symbol.upper() in LIFE_INSURANCE_STATIC
+
+
+def insert_life_insurance_document_to_db(company_id: int, company_symbol: str, report: Dict) -> Dict:
+    """
+    Insert life insurance document to database with duplicate checking.
+    If PDF URL already exists, use Gemini AI to verify metadata
+    """
+    try:
+        pdf_url = report.get('pdf_url') or report.get('file_url')
+        if not pdf_url:
+            raise ValueError("No PDF URL found in report data")
+
+        # Check if PDF URL already exists
+        existing = (supabase.table("life_insurance_companies_documents")
+                   .select("*")
+                   .eq("pdf_url", pdf_url)
+                   .execute())
+
+        if existing.data and len(existing.data) > 0:
+            print(f"   📄 PDF URL already exists in database")
+            existing_doc = existing.data[0]
+
+            # Use Gemini AI to verify which metadata is correct for this PDF URL
+            print(f"   🧠 Verifying metadata with Gemini AI for existing PDF...")
+            ai_meta = extract_metadata_from_pdf_url(pdf_url, company_symbol)
+
+            should_update = False
+            update_data = {}
+
+            if ai_meta:
+                # If Gemini found a different fiscal year or quarter, update the database
+                if ai_meta.get('fiscal_year') and ai_meta['fiscal_year'] != existing_doc.get('fiscal_year'):
+                    print(f"     - Updating FY: {existing_doc.get('fiscal_year')} -> {ai_meta['fiscal_year']}")
+                    update_data['fiscal_year'] = ai_meta['fiscal_year']
+                    should_update = True
+
+                if ai_meta.get('report_type') and ai_meta['report_type'] != existing_doc.get('report_type'):
+                    print(f"     - Updating Type: {existing_doc.get('report_type')} -> {ai_meta['report_type']}")
+                    update_data['report_type'] = ai_meta['report_type']
+                    should_update = True
+
+                if ai_meta.get('quarter') and ai_meta['quarter'] != existing_doc.get('quarter'):
+                    print(f"     - Updating Quarter: {existing_doc.get('quarter')} -> {ai_meta['quarter']}")
+                    update_data['quarter'] = ai_meta['quarter']
+                    should_update = True
+
+            if should_update:
+                update_data['updated_at'] = datetime.now().isoformat()
+                updated = (supabase.table("life_insurance_companies_documents")
+                          .update(update_data)
+                          .eq("id", existing_doc['id'])
+                          .execute())
+                return updated.data[0]
+            return existing_doc
+
+        # New record - insert directly
+        doc_data = {
+            "life_insurance_id": company_id,
+            "life_insurance_symbol": company_symbol,
+            "pdf_url": pdf_url,
+            "fiscal_year": report.get('fiscal_year', ''),
+            "report_type": report.get('report_type', ''),
+            "quarter": report.get('quarter'),
+            "scraped_at": datetime.now().isoformat(),
+            "method": report.get('source', 'static'),
+            "added_by": "api_scraper"
+        }
+
+        result = supabase.table("life_insurance_companies_documents").insert(doc_data).execute()
+        return result.data[0] if result.data else doc_data
+    except Exception as e:
+        print(f"   ❌ Error inserting life insurance document: {e}")
+        raise
+
+
+# ============================================================================
+# LIFE INSURANCE DYNAMIC API HANDLER — PMLI
+# ============================================================================
+
+def fetch_from_pmli_api(fiscal_year: str, report_type: str, quarter: Optional[str] = None) -> Optional[Dict]:
+    """Fetch from Prabhu Mahalaxmi Life Insurance Strapi CMS API"""
+    try:
+        config = LIFE_INSURANCE_DYNAMIC_API["PMLI"]
+        api_url = config['annual_api'] if report_type == 'annual' else config['quarterly_api']
+        response = requests.get(api_url, timeout=30)
+        if response.status_code != 200:
+            print(f"   PMLI API returned {response.status_code}")
+            return None
+
+        data = response.json()
+        items = data.get('data', [])
+        nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+        for item in items:
+            attrs = item.get('attributes', {})
+            title = attrs.get('title', '')
+            summary = attrs.get('summary', '')  # e.g. "Fiscal Year 2078/79"
+
+            # Extract fiscal year from summary or title
+            item_fy = None
+            fy_match = re.search(r'(\d{4}/\d{2,4})', summary) or re.search(r'(\d{4}/\d{2,4})', title)
+            if fy_match:
+                item_fy = normalize_fiscal_year_format(fy_match.group(1))
+
+            # Also handle short format like "80/81" in title
+            if not item_fy:
+                short_match = re.search(r'(\d{2}/\d{2})', title)
+                if short_match:
+                    parts = short_match.group(1).split('/')
+                    item_fy = normalize_fiscal_year_format(f"20{parts[0]}/{parts[1]}")
+
+            if item_fy not in (nepali_fy, english_fy):
+                continue
+
+            # For quarterly reports, match quarter from title
+            if report_type == "quarterly" and quarter:
+                q_found = None
+                if "1Q" in title or "First" in title:   q_found = "Q1"
+                elif "2Q" in title or "Second" in title: q_found = "Q2"
+                elif "3Q" in title or "Third" in title:  q_found = "Q3"
+                elif "4Q" in title or "Fourth" in title: q_found = "Q4"
+                if q_found != quarter:
+                    continue
+
+            # Extract file URL
+            file_data = attrs.get('file', {}).get('data')
+            if file_data:
+                file_attrs = file_data.get('attributes', {})
+                url_path = file_attrs.get('url')
+                if url_path:
+                    full_url = f"{config['file_base']}{url_path}"
+                    return {
+                        'pdf_url': full_url,
+                        'fiscal_year': item_fy or nepali_fy,
+                        'report_type': report_type,
+                        'quarter': quarter if report_type == 'quarterly' else None,
+                        'source': 'pmli_api'
+                    }
+        return None
+    except Exception as e:
+        print(f"   Error fetching from PMLI API: {e}")
+        return None
+
+
+def fetch_from_life_insurance_api(company_symbol: str, fiscal_year: str, report_type: str,
+                                   quarter: Optional[str] = None) -> Optional[Dict]:
+    """Main dispatcher for life insurance dynamic API handlers"""
+    config = LIFE_INSURANCE_DYNAMIC_API.get(company_symbol.upper())
+    if not config:
+        return None
+    method = config.get('method')
+    if method == 'pmli_api':
+        return fetch_from_pmli_api(fiscal_year, report_type, quarter)
+    print(f"   Unknown life insurance API method: {method}")
+    return None
+
+
+# ============================================================================
+# LIFE INSURANCE ENDPOINTS
+# ============================================================================
+
+@app.get("/life-insurance/annual-report")
+def get_life_insurance_annual_report(company_symbol: str, fiscal_year: str):
+    """
+    Get annual report for a life insurance company.
+    Prioritizes URLs from the life_insurance_companies table.
+    """
+    company_symbol = company_symbol.upper()
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"\n{'='*70}")
+    print(f"LIFE INSURANCE ANNUAL: {company_symbol} | FY: {nepali_fy} / {english_fy}")
+    print(f"{'='*70}")
+
+    # RJBCL: only quarterly reports exist
+    if company_symbol == "RJBCL":
+        raise HTTPException(
+            status_code=404,
+            detail="Rastriya Jeewan Beema Company (RJBCL) does not publish annual reports. Quarterly reports only."
+        )
+
+    company = get_life_insurance_company_info(company_symbol)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Life insurance company '{company_symbol}' not found")
+
+    # 1. Database Check
+    print("Checking database for existing document...")
+    existing = (check_life_insurance_document_exists(company['id'], nepali_fy, 'annual') or
+                check_life_insurance_document_exists(company['id'], english_fy, 'annual'))
+    if existing:
+        return {"status": "found", "source": "database", "pdf_url": existing['pdf_url']}
+
+    # 2. Dynamic API Check
+    if has_life_insurance_dynamic_api(company_symbol):
+        print("Checking dynamic API...")
+        api_doc = fetch_from_life_insurance_api(company_symbol, nepali_fy, 'annual')
+        if api_doc:
+            inserted = insert_life_insurance_document_to_db(company['id'], company_symbol, api_doc)
+            return {"status": "found", "source": "dynamic_api", "pdf_url": inserted['pdf_url']}
+
+    # 3. Firecrawl Scraping
+    print("Sourcing URLs for scraping...")
+    urls = []
+
+    # Priority 1: DB URLs
+    if company.get('annual_report_url'): urls.append(company['annual_report_url'])
+    if company.get('report_page'): urls.append(company['report_page'])
+
+    # Priority 2: Pagination Config
+    if has_life_insurance_pagination(company_symbol):
+        config = LIFE_INSURANCE_PAGINATED[company_symbol]
+        base_url = config.get('annual_url', '')
+        if "{page}" in base_url:
+            urls.extend([base_url.format(page=i) for i in range(1, 3)])
+
+    if not urls:
+        raise HTTPException(status_code=404, detail="No report URLs found in database or config")
+
+    # Special note for SJLIC (merged company)
+    sjlic_note = ""
+    if company_symbol == "SJLIC":
+        sjlic_note = " (Note: Check Surya Life and Jyoti Life for reports before 2078/79)"
+
+    prompt = (
+        f"Find the AUDITED ANNUAL REPORT for fiscal year {nepali_fy} or {english_fy}.{sjlic_note}"
+        f' Return JSON: {{"found": true, "report": {{"fiscal_year": "{nepali_fy}", "report_type": "annual", "file_url": "<pdf_url>"}}}}'
+    )
+
+    for url in urls:
+        print(f"🔍 Scraping: {url}")
+        try:
+            result = firecrawl.scrape(url, formats=["markdown", {"type": "json", "prompt": prompt}])
+            if result.json and result.json.get('found'):
+                report = result.json.get('report')
+                if report and report.get('file_url'):
+                    report['source'] = 'static'
+                    inserted = insert_life_insurance_document_to_db(company['id'], company_symbol, report)
+                    return {"status": "found", "source": "scraped", "pdf_url": inserted['pdf_url']}
+        except Exception as e:
+            print(f"  ❌ Error scraping {url}: {e}")
+            continue
+
+    raise HTTPException(status_code=404, detail="Annual report not found via any method")
+
+
+@app.get("/life-insurance/quarterly-report")
+def get_life_insurance_quarterly_report(company_symbol: str, fiscal_year: str, quarter: str):
+    """
+    Get quarterly report for a life insurance company.
+    Prioritizes URLs from the life_insurance_companies table.
+    """
+    company_symbol = company_symbol.upper()
+    quarter = quarter.upper()
+    if quarter not in ['Q1', 'Q2', 'Q3', 'Q4']:
+        raise HTTPException(status_code=400, detail="Invalid quarter. Must be Q1, Q2, Q3, or Q4.")
+
+    nepali_fy, english_fy = normalize_fiscal_year(fiscal_year)
+
+    print(f"\n{'='*70}")
+    print(f"LIFE INSURANCE QUARTERLY: {company_symbol} | FY: {nepali_fy} | {quarter}")
+    print(f"{'='*70}")
+
+    company = get_life_insurance_company_info(company_symbol)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Life insurance company '{company_symbol}' not found")
+
+    # 1. Database Check
+    print("Checking database for existing document...")
+    existing = (check_life_insurance_document_exists(company['id'], nepali_fy, 'quarterly', quarter) or
+                check_life_insurance_document_exists(company['id'], english_fy, 'quarterly', quarter))
+    if existing:
+        return {"status": "found", "source": "database", "pdf_url": existing['pdf_url']}
+
+    # 2. Dynamic API Check
+    if has_life_insurance_dynamic_api(company_symbol):
+        print("Checking dynamic API...")
+        api_doc = fetch_from_life_insurance_api(company_symbol, nepali_fy, 'quarterly', quarter)
+        if api_doc:
+            inserted = insert_life_insurance_document_to_db(company['id'], company_symbol, api_doc)
+            return {"status": "found", "source": "dynamic_api", "pdf_url": inserted['pdf_url']}
+
+    # 3. Firecrawl Scraping
+    print("Sourcing URLs for scraping...")
+    urls = []
+
+    # Priority 1: DB URLs
+    if company.get('quarter_report_url'): urls.append(company['quarter_report_url'])
+    if company.get('report_page'): urls.append(company['report_page'])
+
+    # Priority 2: Pagination Config
+    if has_life_insurance_pagination(company_symbol):
+        config = LIFE_INSURANCE_PAGINATED[company_symbol]
+        base_url = config.get('quarterly_url', '') or config.get('report_page_url', '')
+        if "{page}" in base_url:
+            urls.extend([base_url.format(page=i) for i in range(1, 3)])
+
+    if not urls:
+        raise HTTPException(status_code=404, detail="No report URLs found in database or config")
+
+    # Special logic for Citizen Life (CLI) and others
+    extra_instruction = ""
+    if company_symbol == "CLI":
+        months = CLI_QUARTER_NEPALI_MONTHS.get(quarter, [])
+        extra_instruction = f" (Labels: {', '.join(months)})"
+    elif company_symbol == "SJLIC":
+        extra_instruction = " (Note: Check Surya Life and Jyoti Life for reports before 2078/79)"
+    elif company_symbol == "RJBCL":
+        extra_instruction = " (Note: Look specifically for quarterly/interim financial reports; newest uploads first)"
+
+    prompt = (
+        f"Find the {quarter} quarterly/interim report for fiscal year {nepali_fy} or {english_fy}.{extra_instruction}"
+        f' Return JSON: {{"found": true, "report": {{"fiscal_year": "{nepali_fy}", "report_type": "quarterly", "quarter": "{quarter}", "file_url": "<pdf_url>"}}}}'
+    )
+
+    for url in urls:
+        print(f"🔍 Scraping: {url}")
+        try:
+            result = firecrawl.scrape(url, formats=["markdown", {"type": "json", "prompt": prompt}])
+            if result.json and result.json.get('found'):
+                report = result.json.get('report')
+                if report and report.get('file_url'):
+                    report['source'] = 'static'
+                    inserted = insert_life_insurance_document_to_db(company['id'], company_symbol, report)
+                    return {"status": "found", "source": "scraped", "pdf_url": inserted['pdf_url']}
+        except Exception as e:
+            print(f"  ❌ Error scraping {url}: {e}")
+            continue
+
+    raise HTTPException(status_code=404, detail="Quarterly report not found via any method")
+
+
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8002)
-

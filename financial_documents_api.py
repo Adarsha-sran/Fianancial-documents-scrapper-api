@@ -36,13 +36,14 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 firecrawl = Firecrawl(api_key=FIRECRAWL_API_KEY)
 
 # Configure Gemini AI
+# Using gemini-2.5-flash for better document understanding and metadata extraction capabilities,if duplicate link found 
 genai.configure(api_key=GEMINI_API_KEY)
 gemini_model = genai.GenerativeModel('gemini-2.5-flash')
 
 app = FastAPI(
     title="Financial Documents API",
-    description="On-demand scraping and retrieval of bank financial reports",
-    version="1.0.0"
+    description="API for scraping and retrieving financial documents from various banks and financial institutions",
+    version="4.0.0"
 )
 
 # Fiscal year conversion dictionary
